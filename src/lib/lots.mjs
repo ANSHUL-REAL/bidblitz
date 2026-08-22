@@ -7,17 +7,11 @@
  * cannot break an image that ships with the page.
  */
 export const PRESET_LOTS = [
-  // Open with names everyone knows — the format reads in five seconds.
-  { name: 'Virat Kohli', image: '/lots/kohli.jpg', kind: 'cricket' },
-  { name: 'Jasprit Bumrah', image: '/lots/bumrah.jpg', kind: 'cricket' },
-  { name: 'Smriti Mandhana', image: '/lots/mandhana.jpg', kind: 'cricket' },
-
-  // Then make it about the room.
+  // Auction presets are memes / in-jokes only. Cricket players live in the
+  // separate Fantasy League mode (FANTASY_ITEMS), never mixed in here.
   { name: 'The Guy Who Deployed To Mainnet', image: '/lots/mainnet.jpg', kind: 'injoke' },
   { name: 'Whoever Broke The Venue WiFi', image: '/lots/wifi.jpg', kind: 'injoke' },
   { name: 'Last Minute Git Push', image: '/lots/gitpush.jpg', kind: 'injoke' },
-
-  // Then pure chaos.
   { name: 'This Is Fine', image: '/lots/thisisfine.jpg', kind: 'meme' },
   { name: 'Distracted Boyfriend', image: '/lots/distracted.jpg', kind: 'meme' },
 ]

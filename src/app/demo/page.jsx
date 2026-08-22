@@ -131,7 +131,7 @@ function racersFrom(snap) {
   const meta = Object.fromEntries(snap.bidders.map((b) => [b.id, b]))
   if (lot && Object.keys(lot.bids || {}).length) {
     return Object.entries(lot.bids)
-      .map(([id, amt]) => ({ key: id, label: meta[id]?.name || id, amount: amt, seed: id, color: meta[id]?.color || null }))
+      .map(([id, amt]) => ({ key: id, label: meta[id]?.name || id, amount: amt, seed: meta[id]?.avatarSeed || id, color: meta[id]?.color || null }))
       .sort((a, b) => (BigInt(b.amount) > BigInt(a.amount) ? 1 : -1))
       .slice(0, 5)
   }
@@ -139,7 +139,7 @@ function racersFrom(snap) {
   return [...snap.bidders]
     .sort((a, b) => (b.purse > a.purse ? 1 : -1))
     .slice(0, 5)
-    .map((b) => ({ key: b.id, label: b.name, amount: b.purse, seed: b.id, color: b.color || null }))
+    .map((b) => ({ key: b.id, label: b.name, amount: b.purse, seed: b.avatarSeed || b.id, color: b.color || null }))
 }
 
 function Standings({ snap, dark = false }) {
@@ -163,7 +163,7 @@ function Standings({ snap, dark = false }) {
           <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: '#9c94bd', width: 16, textAlign: 'right' }}>{b.rank}</span>
           {b.short
             ? <span style={{ width: 30, height: 30, borderRadius: 8, background: b.color, color: b.ink || '#fff', flexShrink: 0, display: 'grid', placeItems: 'center', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 11 }}>{b.short}</span>
-            : <Avatar seed={b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />}
+            : <Avatar seed={b.avatarSeed || b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />}
           <span style={{ fontWeight: 700, fontSize: 14, flex: 1, color: dark ? '#fff' : '#12121c' }}>
             {b.name}{b.id === 'you' ? ' (you)' : ''}
           </span>
@@ -464,11 +464,29 @@ function BidderPane({ snap, engine }) {
         <span style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700 }}>
           {you.short
             ? <span style={{ width: 30, height: 30, borderRadius: 8, background: you.color, color: you.ink || '#fff', display: 'grid', placeItems: 'center', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 11 }}>{you.short}</span>
-            : <Avatar seed="you" size={30} ring="#6b2de6" />}
+            : <Avatar seed={you.avatarSeed || 'you'} size={30} ring="#6b2de6" />}
           {you.name}
         </span>
         <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800 }}>{formatAmount(you.purse)} <span style={{ fontSize: 12, color: '#6b2de6' }}>MON</span></span>
       </div>
+
+      {/* pick your avatar — shows on the board and big screen (solo only; teams use crests) */}
+      {snap.mode !== 1 && (
+        <div style={{ background: '#fff', borderRadius: 12, padding: '10px 12px' }}>
+          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.14em', color: '#9c94bd', marginBottom: 8 }}>YOUR AVATAR</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {['Rex', 'Milo', 'Cleo', 'Nova', 'Zed', 'Kai', 'Pixel', 'Juno'].map((seed) => {
+              const on = (you.avatarSeed || 'you') === seed
+              return (
+                <button key={seed} className="btn-plain" onClick={() => engine.setYouAvatar(seed)}
+                  style={{ padding: 2, borderRadius: '50%', border: `2px solid ${on ? '#6b2de6' : 'transparent'}` }}>
+                  <Avatar seed={seed} size={36} />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={{ background: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', minHeight: 200 }}>
         {open ? (

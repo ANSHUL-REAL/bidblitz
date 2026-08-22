@@ -26,7 +26,7 @@ function soloState() {
   return {
     roomName: 'Demo Auction',
     mode: 0,
-    you: { id: 'you', name: 'You', color: '#6b2de6', purse: START_PURSE, spent: 0n, wins: 0, bids: 0 },
+    you: { id: 'you', name: 'You', color: '#6b2de6', avatarSeed: 'Rex', purse: START_PURSE, spent: 0n, wins: 0, bids: 0 },
     bots: BOT_NAMES.slice(0, 6).map((name, i) => ({
       id: `bot${i}`,
       name,
@@ -109,7 +109,7 @@ export class DemoEngine {
       roomName: s.roomName,
       mode: s.mode,
       you: { ...s.you },
-      bidders: bidders.map((b) => ({ id: b.id, name: b.name, color: b.color, short: b.short, ink: b.ink, purse: b.purse, spent: b.spent, wins: b.wins, bids: b.bids })),
+      bidders: bidders.map((b) => ({ id: b.id, name: b.name, color: b.color, short: b.short, ink: b.ink, avatarSeed: b.avatarSeed, purse: b.purse, spent: b.spent, wins: b.wins, bids: b.bids })),
       queue: s.queue.map((q) => ({ ...q })),
       lots: s.lots.map((l) => ({ ...l })),
       openLot: openLot ? { ...openLot } : null,
@@ -127,6 +127,11 @@ export class DemoEngine {
   }
 
   // ------------------------------------------------------------- host actions
+
+  setYouAvatar(seed) {
+    this.state.you.avatarSeed = seed
+    this.emit()
+  }
 
   setRoom({ name, mode }) {
     if (name != null) this.state.roomName = name
