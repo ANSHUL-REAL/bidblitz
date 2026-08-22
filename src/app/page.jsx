@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readContract } from 'viem/actions'
 import { MonadMark, MonadLockup } from '../components/Logo'
 import { RaceTrack, racersFromState } from '../components/RaceTrack'
+import { useDemoRace } from '../lib/demoRace'
 import { useAuction, useCountdown } from '../lib/useAuction'
 import { deriveAccount, loadIdentity, saveIdentity, clearIdentity, normalizeName } from '../lib/identity.mjs'
 import { Signer, readClient, squadForAddress, requestFunding, waitForArming, CONTRACT } from '../lib/tx.mjs'
@@ -292,26 +293,40 @@ function HeroCopy({ state, joined }) {
 }
 
 function RaceLane({ state, signer }) {
+  const hasLiveBids = Boolean(state?.racers?.length)
+
+  // The hero is always in motion. Real bids drive it when a lot is running;
+  // otherwise the source file's own simulation runs, so the lanes never sit dead
+  // still waiting for someone to bid.
+  const demo = useDemoRace({ enabled: !hasLiveBids })
+
   const [flash, setFlash] = useState(null)
   const prevTop = useRef(null)
-  const racers = useMemo(() => racersFromState(state, { myAddress: signer?.address }), [state, signer])
+  const liveRacers = useMemo(
+    () => racersFromState(state, { myAddress: signer?.address }),
+    [state, signer],
+  )
 
   useEffect(() => {
-    const top = racers[0]?.key
+    if (!hasLiveBids) return
+    const top = liveRacers[0]?.key
     if (top && prevTop.current && top !== prevTop.current) {
       setFlash(top)
       const id = setTimeout(() => setFlash(null), 900)
       return () => clearTimeout(id)
     }
     prevTop.current = top
-  }, [racers])
+  }, [liveRacers, hasLiveBids])
 
   return (
     <div style={{ position: 'relative' }}>
-      <RaceTrack racers={racers} flashKey={flash} />
-      {!state?.racers?.length && (
+      <RaceTrack
+        racers={hasLiveBids ? liveRacers : demo.racers}
+        flashKey={hasLiveBids ? flash : demo.flashKey}
+      />
+      {!hasLiveBids && (
         <p style={{ margin: '2px 0 0 26px', fontSize: 14, color: '#6b6d78' }}>
-          Team purses. Live bidders take over these lanes the moment a lot opens.
+          Sample race — real bidders take over these lanes the moment a lot opens.
         </p>
       )}
     </div>

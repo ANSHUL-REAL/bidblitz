@@ -1,5 +1,7 @@
 'use client'
 import { useMemo } from 'react'
+import { createAvatar } from '@dicebear/core'
+import { adventurer } from '@dicebear/collection'
 import { formatAmount, squadOf, SQUADS, shortAddress } from '../lib/format.mjs'
 
 /**
@@ -15,36 +17,30 @@ import { formatAmount, squadOf, SQUADS, shortAddress } from '../lib/format.mjs'
  * lots so the hero is never a dead grid.
  */
 
-const AVATAR_GRADIENTS = [
-  'linear-gradient(160deg,#ffd9b0,#f5b880)',
-  'linear-gradient(160deg,#c9f0d8,#8fd8b0)',
-  'linear-gradient(160deg,#ffe2c2,#e9b78a)',
-  'linear-gradient(160deg,#cfe3ff,#93b8ea)',
-  'linear-gradient(160deg,#e7d6ff,#b79cf5)',
-]
-
 /**
- * Generated locally from the seed rather than fetched from dicebear as the
- * source did — venue wifi must not be able to break the hero.
+ * Same DiceBear "adventurer" faces and background palette the source used, but
+ * generated from the npm package instead of hitting api.dicebear.com. Identical
+ * output, zero network calls — venue wifi must not be able to break the hero.
  */
-function Avatar({ seed, index, size = 42 }) {
-  const initial = useMemo(() => {
-    const s = String(seed || '?')
-    return (/^0x/i.test(s) ? s.slice(2, 3) : s.slice(0, 1)).toUpperCase()
-  }, [seed])
+function Avatar({ seed, size = 42 }) {
+  const uri = useMemo(
+    () =>
+      createAvatar(adventurer, {
+        seed: String(seed ?? '?'),
+        radius: 50,
+        backgroundColor: ['ffd5dc', 'c0aede', 'd1d4f9', 'ffdfbf', 'b6e3f4'],
+      }).toDataUri(),
+    [seed],
+  )
 
   return (
     <div
       style={{
-        width: size, height: size, borderRadius: '50%', overflow: 'hidden',
-        background: AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length],
+        width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
         boxShadow: 'inset 0 -6px 12px rgba(0,0,0,.07)',
-        display: 'grid', placeItems: 'center',
-        fontFamily: "'Archivo', sans-serif", fontWeight: 800,
-        fontSize: size * 0.44, color: 'rgba(255,255,255,.95)',
       }}
     >
-      {initial}
+      <img src={uri} alt="" style={{ width: size, height: size, display: 'block', objectFit: 'cover' }} />
     </div>
   )
 }
@@ -83,7 +79,8 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
         ...r,
         lead,
         progress: (68 + ((v - lo) / span) * 28).toFixed(2),
-        ...SEED_META[i % SEED_META.length],
+        indent: r.indent ?? SEED_META[i % SEED_META.length].indent,
+        bob: r.bob ?? SEED_META[i % SEED_META.length].bob,
       }
     })
   }, [racers])
@@ -128,7 +125,7 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
                 transition: 'box-shadow .5s ease, margin-left .8s cubic-bezier(.2,.7,.2,1)',
               }}
             >
-              <Avatar seed={r.seed} index={i} size={42 * s} />
+              <Avatar seed={r.seed} size={42 * s} />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 92 * s }}>
                 <div
