@@ -340,6 +340,32 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [],
+    "name": "MODE_SOLO",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MODE_SQUADS",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "SOLO_START",
     "outputs": [
       {
@@ -470,6 +496,11 @@ export const BIDBLITZ_ABI = [
         "internalType": "string",
         "name": "rname",
         "type": "string"
+      },
+      {
+        "internalType": "uint8",
+        "name": "mode",
+        "type": "uint8"
       }
     ],
     "name": "createRoom",
@@ -816,6 +847,11 @@ export const BIDBLITZ_ABI = [
             "type": "uint16"
           },
           {
+            "internalType": "uint8",
+            "name": "mode",
+            "type": "uint8"
+          },
+          {
             "internalType": "uint40",
             "name": "createdAt",
             "type": "uint40"
@@ -895,6 +931,11 @@ export const BIDBLITZ_ABI = [
         "internalType": "uint32",
         "name": "openLot",
         "type": "uint32"
+      },
+      {
+        "internalType": "uint8",
+        "name": "mode",
+        "type": "uint8"
       },
       {
         "internalType": "bool",
@@ -1089,6 +1130,11 @@ export const BIDBLITZ_ABI = [
             "internalType": "uint16",
             "name": "nEntities",
             "type": "uint16"
+          },
+          {
+            "internalType": "uint8",
+            "name": "mode",
+            "type": "uint8"
           },
           {
             "internalType": "uint128[]",

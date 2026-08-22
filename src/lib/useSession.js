@@ -89,7 +89,18 @@ export function useSession(roomId) {
 
     setStatus('Joining the auction…')
     await s.syncNonce?.()
-    await s.joinSquad(roomId, squadForAddress(s.address))
+
+    // Solo/meme rooms have no squads — everyone mints their own entity. Fantasy
+    // rooms draft you onto one of the four teams. joinSquad reverts in a solo
+    // room, so the mode has to decide.
+    const snap = await readContract(readClient, {
+      address: CONTRACT, abi: BIDBLITZ_ABI, functionName: 'state', args: [Number(roomId)],
+    })
+    if (Number(snap.mode) === 1) {
+      await s.joinSquad(roomId, squadForAddress(s.address))
+    } else {
+      await s.joinSolo(roomId)
+    }
   }, [roomId, entityIdOf])
 
   /** Burner path: name + password derive the wallet, on any device. */

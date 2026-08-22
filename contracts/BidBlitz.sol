@@ -42,12 +42,19 @@ contract BidBlitz {
     uint40 public constant ANTISNIPE = 3;
     uint40 public constant MAX_DURATION = 300;
 
+    /// Room formats. SOLO is the default — a general auction where everyone bids
+    /// as themselves on any items (memes, pictures, anything). SQUADS is the
+    /// fantasy team format: four preset teams share a purse.
+    uint8 public constant MODE_SOLO = 0;
+    uint8 public constant MODE_SQUADS = 1;
+
     struct Room {
         address host;
         uint40  createdAt;
         uint16  entityCount;
         uint32  lotCount;
         uint32  openLot;
+        uint8   mode;
         bool    exists;
     }
 
@@ -109,20 +116,27 @@ contract BidBlitz {
     // ------------------------------------------------------------------ rooms
 
     /// Anyone can host. The creating wallet becomes the only controller.
-    function createRoom(string calldata rname) external returns (uint32 roomId) {
+    /// mode = MODE_SOLO (general/meme auction) or MODE_SQUADS (fantasy teams).
+    function createRoom(string calldata rname, uint8 mode) external returns (uint32 roomId) {
+        bool squads = mode == MODE_SQUADS;
         roomId = ++roomCount;
         rooms[roomId] = Room({
             host: msg.sender,
             createdAt: uint40(block.timestamp),
-            entityCount: SQUAD_COUNT,
+            // Squad rooms start with the 4 teams as entities 1..4. Solo rooms
+            // start empty — each bidder mints their own entity on join.
+            entityCount: squads ? SQUAD_COUNT : 0,
             lotCount: 0,
             openLot: 0,
+            mode: squads ? MODE_SQUADS : MODE_SOLO,
             exists: true
         });
         roomName[roomId] = rname;
 
-        for (uint16 i = 1; i <= SQUAD_COUNT; ++i) {
-            entities[roomId][i] = Entity({ purse: SQUAD_START, spent: 0 });
+        if (squads) {
+            for (uint16 i = 1; i <= SQUAD_COUNT; ++i) {
+                entities[roomId][i] = Entity({ purse: SQUAD_START, spent: 0 });
+            }
         }
 
         emit RoomCreated(roomId, msg.sender, rname);
@@ -130,9 +144,11 @@ contract BidBlitz {
 
     // ---------------------------------------------------------------- joining
 
-    /// Squads are entities 1..SQUAD_COUNT, preallocated when the room is made.
+    /// Squads are entities 1..SQUAD_COUNT, preallocated in SQUADS rooms only.
     function joinSquad(uint32 roomId, uint16 squadId) external {
-        if (!rooms[roomId].exists) revert NoRoom();
+        Room storage r = rooms[roomId];
+        if (!r.exists) revert NoRoom();
+        if (r.mode != MODE_SQUADS) revert BadEntity(); // squads only exist in fantasy rooms
         if (entityOf[roomId][msg.sender] != 0) revert AlreadyJoined();
         if (squadId == 0 || squadId > SQUAD_COUNT) revert BadEntity();
         entityOf[roomId][msg.sender] = squadId;
@@ -277,6 +293,7 @@ contract BidBlitz {
         uint256 chainNow;
         uint256 blockNumber;
         uint16  nEntities;
+        uint8   mode;
         uint128[] squadPurses;
     }
 
@@ -293,6 +310,7 @@ contract BidBlitz {
         s.chainNow = block.timestamp;
         s.blockNumber = block.number;
         s.nEntities = r.entityCount;
+        s.mode = r.mode;
 
         // Falls back to the most recent lot so the SOLD reveal stays on screen
         // after the lot closes, instead of blanking.
@@ -331,6 +349,7 @@ contract BidBlitz {
         uint32  lotCount;
         uint32  openLot;
         uint16  entityCount;
+        uint8   mode;
         uint40  createdAt;
     }
 
@@ -348,6 +367,7 @@ contract BidBlitz {
                 lotCount: r.lotCount,
                 openLot: r.openLot,
                 entityCount: r.entityCount,
+                mode: r.mode,
                 createdAt: r.createdAt
             });
         }

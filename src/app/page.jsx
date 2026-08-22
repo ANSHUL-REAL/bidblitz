@@ -9,6 +9,7 @@ import { useDemoRace } from '../lib/demoRace'
 import { useSession } from '../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../lib/room.mjs'
 import { formatAmount } from '../lib/format.mjs'
+import { CATEGORIES, modeForCategories } from '../lib/categories.mjs'
 
 const EASE = 'cubic-bezier(.2,.7,.2,1)'
 
@@ -77,6 +78,7 @@ function Header({ session }) {
             <a className="nav-link" href="#how">How it works</a>
             <a className="nav-link" href="#about">About</a>
             <a className="nav-link" href="#faq">FAQ</a>
+            <a className="nav-link" href="/demo">Try demo</a>
           </div>
           <a
             className="cta-sm"
@@ -167,8 +169,8 @@ function HeroCopy() {
       </h1>
 
       <p style={{ margin: 0, fontSize: 21, lineHeight: 1.5, color: '#2a2a3a', maxWidth: '30ch', animation: `om-rise .7s .26s ${EASE} both` }}>
-        Lightning-fast auctions on Monad. Host a room, share the code, and let the
-        whole room bid in real time.
+        Host a live auction on anything — memes, NFTs, fantasy leagues, whatever.
+        Share a code, and the whole room bids in real time on Monad.
       </p>
 
       <a
@@ -215,9 +217,13 @@ function HostOrJoin({ session }) {
   const [mode, setMode] = useState('join')
   const [code, setCode] = useState('')
   const [roomTitle, setRoomTitle] = useState('')
+  const [cats, setCats] = useState(['memes'])
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
   const { signer } = session
+
+  const toggleCat = (id) =>
+    setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
 
   function goJoin(e) {
     e.preventDefault()
@@ -232,18 +238,23 @@ function HostOrJoin({ session }) {
     setError('')
     const title = sanitizeRoomName(roomTitle)
     if (!title) return setError('Give your auction a name')
+    if (!cats.length) return setError('Pick at least one category')
 
     setCreating(true)
     try {
       await signer.syncNonce?.()
-      await signer.createRoom(title)
+      await signer.createRoom(title, modeForCategories(cats))
 
       // createRoom returns the id on-chain, but we never wait for a receipt.
       // Poll the lobby until the room this wallet just made shows up — same
       // read-the-chain-not-the-receipt rule the rest of the app follows.
       const mine = await waitForMyRoom(signer.address, title)
-      if (mine) router.push(`/r/${roomCode(mine)}/host`)
-      else setError('Room sent — check the lobby below in a moment')
+      if (mine) {
+        // Categories are a frontend concept, so remember which ones this room
+        // was made with — the host console reads this to seed its item picker.
+        try { localStorage.setItem(`bidblitz:cats:${mine}`, JSON.stringify(cats)) } catch {}
+        router.push(`/r/${roomCode(mine)}/host`)
+      } else setError('Room sent — check the lobby below in a moment')
     } catch (err) {
       setError(String(err?.message || err))
     } finally {
@@ -265,9 +276,13 @@ function HostOrJoin({ session }) {
             Host one, or <span style={{ color: '#6b2de6' }}>join one</span>
           </h2>
           <p style={{ margin: '16px auto 0', fontSize: 19, lineHeight: 1.5, color: '#2a2a3a', maxWidth: '48ch' }}>
-            Anyone can run an auction. Create a room, share the four-character
-            code, and everyone else is bidding in seconds.
+            Auction memes, NFTs, cards, art, a fantasy league, or your own custom
+            lineup. Create a room, share the four-character code, and everyone else
+            is bidding in seconds.
           </p>
+          <a href="/demo" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 16, fontWeight: 700, color: '#5b28d9' }}>
+            No wallet yet? Try the live demo →
+          </a>
         </div>
 
         <div style={{ maxWidth: 460, margin: '30px auto 0' }}>
@@ -335,9 +350,46 @@ function HostOrJoin({ session }) {
                 placeholder="Monad Blitz Hyderabad"
                 maxLength={40}
               />
-              <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.45, color: '#6b6d78' }}>
+              <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, letterSpacing: '.16em', color: '#6b6d78' }}>
+                  CATEGORIES
+                </span>
+                <span style={{ fontSize: 12, color: '#9c94bd' }}>
+                  {modeForCategories(cats) === 1 ? 'Team draft' : 'Solo bidding'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                {CATEGORIES.map((c) => {
+                  const on = cats.includes(c.id)
+                  return (
+                    <button
+                      type="button"
+                      key={c.id}
+                      className="btn-plain"
+                      onClick={() => toggleCat(c.id)}
+                      title={c.blurb}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px',
+                        borderRadius: 999, fontWeight: 600, fontSize: 14,
+                        border: `1.5px solid ${on ? '#6b2de6' : '#e6e2f5'}`,
+                        background: on ? '#6b2de6' : '#fff',
+                        color: on ? '#fff' : '#3a3c44',
+                      }}
+                    >
+                      <span aria-hidden="true">{c.emoji}</span> {c.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: '#9c94bd' }}>
+                {cats.includes('fantasy')
+                  ? 'Fantasy League runs as a team draft — four squads share a purse. Combine it with anything.'
+                  : 'Pick as many as you like — the room mixes their items. Fantasy League switches it to a team draft.'}
+              </p>
+
+              <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.45, color: '#6b6d78' }}>
                 Your wallet becomes the host — only it can start and sell lots.
-                There is no admin password to lose.
+                No admin password to lose.
               </p>
               <button
                 className="btn-plain cta-lg"
@@ -462,7 +514,7 @@ function Lobby() {
 
 function HowItWorks() {
   const steps = [
-    ['01', 'HOST', 'Name your auction and share the four-character room code.'],
+    ['01', 'HOST', 'Pick your categories — memes, NFTs, fantasy, custom — and share the room code.'],
     ['02', 'BID', 'Every tap is a real transaction, confirmed in under a second.'],
     ['03', 'WIN', 'Highest bid when time ends takes the lot — provably, on-chain.'],
   ]

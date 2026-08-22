@@ -125,7 +125,7 @@ export class InjectedSigner {
     }
   }
 
-  createRoom(name) { return this.send('createRoom', [name], GAS.createRoom) }
+  createRoom(name, mode = 0) { return this.send('createRoom', [name, Number(mode)], GAS.createRoom) }
   joinSquad(roomId, squadId) { return this.send('joinSquad', [Number(roomId), squadId], GAS.joinSquad) }
   joinSolo(roomId) { return this.send('joinSolo', [Number(roomId)], GAS.joinSolo) }
   placeBid(roomId, lotId, amount) {
