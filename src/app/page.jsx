@@ -274,7 +274,7 @@ function HostOrJoin() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Link href="/host" style={{ fontWeight: 700, color: '#5b28d9' }}>or join a room with a code →</Link>
+          <Link href="/host?tab=join" style={{ fontWeight: 700, color: '#5b28d9' }}>or join a room with a code →</Link>
         </div>
 
         <Lobby />

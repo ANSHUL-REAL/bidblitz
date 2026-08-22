@@ -314,19 +314,6 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [],
-    "name": "ANTISNIPE",
-    "outputs": [
-      {
-        "internalType": "uint40",
-        "name": "",
-        "type": "uint40"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "MAX_DURATION",
     "outputs": [
       {

@@ -35,8 +35,9 @@ export default function HostPage() {
 
 function HostInner() {
   const router = useRouter()
+  const params = useSearchParams()
   const session = useSession(null)
-  const [tab, setTab] = useState('host')
+  const [tab, setTab] = useState(params.get('tab') === 'join' ? 'join' : 'host')
 
   return (
     <div style={{ minHeight: '100dvh', background: 'linear-gradient(180deg,#fbfbff,#eceaf6)', fontFamily: "'DM Sans',system-ui,sans-serif", color: '#12121c' }}>

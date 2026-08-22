@@ -39,7 +39,6 @@ contract BidBlitz {
     uint128 public constant SQUAD_START = 200 ether;
     uint128 public constant SOLO_START = 50 ether;
 
-    uint40 public constant ANTISNIPE = 3;
     uint40 public constant MAX_DURATION = 300;
 
     /// Room formats. SOLO is the default — a general auction where everyone bids
@@ -210,18 +209,11 @@ contract BidBlitz {
         uint128 purse = entities[roomId][e].purse;
         if (uint128(amount) > purse) revert ExceedsPurse(purse);
 
-        // Anti-snipe. Costs zero extra gas — that slot is being written anyway.
-        uint40 endsAt = l.endsAt;
-        unchecked {
-            if (endsAt - uint40(block.timestamp) <= ANTISNIPE) {
-                endsAt = uint40(block.timestamp) + ANTISNIPE;
-            }
-        }
-
-        lots[roomId][lotId] = Lot({ highestBid: amount, endsAt: endsAt, leadEntity: e, sold: false });
+        // The clock only counts down — a bid never extends it.
+        lots[roomId][lotId] = Lot({ highestBid: amount, endsAt: l.endsAt, leadEntity: e, sold: false });
         leadBidder[roomId][lotId] = msg.sender;
 
-        emit BidPlaced(roomId, lotId, msg.sender, e, amount, endsAt);
+        emit BidPlaced(roomId, lotId, msg.sender, e, amount, l.endsAt);
     }
 
     /**

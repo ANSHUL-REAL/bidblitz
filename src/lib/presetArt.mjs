@@ -1,6 +1,6 @@
 'use client'
 import { createAvatar } from '@dicebear/core'
-import { funEmoji, bottts, shapes, icons, adventurer } from '@dicebear/collection'
+import { funEmoji, bottts, shapes, icons, adventurer, personas } from '@dicebear/collection'
 
 /**
  * Item artwork, two tiers:
@@ -14,7 +14,7 @@ import { funEmoji, bottts, shapes, icons, adventurer } from '@dicebear/collectio
  */
 
 // --- tier 2: local generated art (never fails) ---
-const STYLE = { memes: funEmoji, nfts: bottts, games: bottts, cards: shapes, art: shapes, irl: icons, fantasy: adventurer }
+const STYLE = { memes: funEmoji, nfts: bottts, games: bottts, cards: shapes, art: shapes, irl: icons, fantasy: personas }
 const artCache = new Map()
 
 export function artFor(category, seed) {

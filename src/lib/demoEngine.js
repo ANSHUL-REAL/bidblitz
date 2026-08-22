@@ -210,10 +210,7 @@ export class DemoEngine {
     lot.bids[bidderId] = amount
     b.bids += 1
 
-    // Anti-snipe: a bid inside the last 3s pushes the clock out to 3s.
-    const remaining = lot.endsAt - Date.now()
-    if (remaining < 3000) lot.endsAt = Date.now() + 3000
-
+    // The clock only counts down — a bid never adds time.
     this.emit()
     return { ok: true }
   }
