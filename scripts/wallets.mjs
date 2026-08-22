@@ -1,11 +1,14 @@
 /**
- * Generates the organizer wallet and the relayer pool, and writes them to .env.
+ * Generates the relayer pool and writes it to .env.
  *
  * Private keys are written to .env and NEVER printed — only addresses are shown,
  * so nothing sensitive lands in a terminal transcript or a screen share.
  *
  * MASTER_KEY is never generated or overwritten: that is your own funded wallet
  * and you paste it into .env yourself.
+ *
+ * There is no organizer wallet any more — a room records its host address
+ * on-chain, so whoever creates a room controls it.
  */
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { loadEnv, setEnv } from './lib/env.mjs'
@@ -17,13 +20,6 @@ loadEnv()
 const updates = {}
 const report = []
 
-if (!process.env.ORGANIZER_KEY) {
-  const key = generatePrivateKey()
-  updates.ORGANIZER_KEY = key
-  report.push(['organizer (new)', privateKeyToAccount(key).address])
-} else {
-  report.push(['organizer', privateKeyToAccount(process.env.ORGANIZER_KEY).address])
-}
 
 if (!process.env.RELAYER_KEYS) {
   const keys = Array.from({ length: RELAYER_COUNT }, generatePrivateKey)

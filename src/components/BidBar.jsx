@@ -12,7 +12,7 @@ import { formatAmount, formatMon, incrementLabel, QUICK_INCREMENTS, squadOf, ent
  * here is in service of two questions a bidder asks constantly: am I winning,
  * and how long have I got?
  */
-export function BidBar({ state, signer, me, refreshMe }) {
+export function BidBar({ state, signer, me, refreshMe, roomId }) {
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const open = Number(state?.openLotId || 0) !== 0
   const live = open && remaining > 0
@@ -66,7 +66,7 @@ export function BidBar({ state, signer, me, refreshMe }) {
     setFlash(null)
     try {
       navigator.vibrate?.(30)
-      await signer.placeBid(state.lotId, amount)
+      await signer.placeBid(roomId, state.lotId, amount)
       setFlash({ kind: 'sent', text: `${formatMon(amount)} — sent` })
     } catch (err) {
       await signer.syncNonce().catch(() => {})

@@ -14,7 +14,6 @@ if (arg?.startsWith('0x') && arg.length === 42) {
   targets.push(['address', arg])
 } else {
   if (process.env.MASTER_KEY) targets.push(['MASTER', privateKeyToAccount(process.env.MASTER_KEY).address])
-  if (process.env.ORGANIZER_KEY) targets.push(['organizer', privateKeyToAccount(process.env.ORGANIZER_KEY).address])
   for (const [i, k] of (process.env.RELAYER_KEYS || '').split(',').filter(Boolean).entries()) {
     targets.push([`relayer ${i}`, privateKeyToAccount(k.trim()).address])
   }

@@ -1,19 +1,23 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { BidBlitzLogo, MonadLockup, MonadMark, Bolt } from '../../components/Logo'
-import { useAuction, useCountdown } from '../../lib/useAuction'
-import { formatMon, SQUADS, squadOf, entityLabel, shortAddress } from '../../lib/format.mjs'
-import { EXPLORER } from '../../lib/chain.mjs'
-import { unlock, dingBid, gavel, fanfareStart, tick } from '../../lib/sound.mjs'
-import { RaceTrack, racersFromState } from '../../components/RaceTrack'
+import { BidBlitzLogo, MonadLockup, MonadMark, Bolt } from '../../../../components/Logo'
+import { useAuction, useCountdown } from '../../../../lib/useAuction'
+import { formatMon, SQUADS, squadOf, entityLabel, shortAddress } from '../../../../lib/format.mjs'
+import { EXPLORER } from '../../../../lib/chain.mjs'
+import { unlock, dingBid, gavel, fanfareStart, tick } from '../../../../lib/sound.mjs'
+import { roomIdFromCode } from '../../../../lib/room.mjs'
+import { use } from 'react'
+import { RaceTrack, racersFromState } from '../../../../components/RaceTrack'
 
-export default function Screen() {
+export default function Screen({ params }) {
+  const { code } = use(params)
+  const roomId = roomIdFromCode(code)
   const [started, setStarted] = useState(false)
-  const { state } = useAuction({ live: true, intervalMs: 400 })
+  const { state } = useAuction({ roomId, live: true, intervalMs: 400 })
 
-  if (!started) return <StartGate onStart={() => setStarted(true)} />
-  return <Board state={state} />
+  if (!started) return <StartGate roomName={state?.rname} onStart={() => setStarted(true)} />
+  return <Board state={state} code={code} />
 }
 
 /**
@@ -21,7 +25,7 @@ export default function Screen() {
  * one deliberate click before the room fills up. It doubles as the fullscreen
  * trigger and a "the projector is showing the right thing" checkpoint.
  */
-function StartGate({ onStart }) {
+function StartGate({ onStart, roomName }) {
   return (
     <main
       className="surface-dark"
@@ -32,6 +36,11 @@ function StartGate({ onStart }) {
         <h1 className="display" style={{ fontSize: 84, margin: '26px 0 10px' }}>
           Bid<span style={{ color: 'var(--monad-purple)' }}>Blitz</span>
         </h1>
+        {roomName && (
+          <p style={{ color: 'var(--monad-purple)', fontSize: 26, fontWeight: 700, margin: '0 0 6px' }}>
+            {roomName}
+          </p>
+        )}
         <p style={{ color: 'var(--ink-3)', fontSize: 20, margin: '0 0 30px' }}>
           Click to enable sound and go fullscreen
         </p>
@@ -51,7 +60,7 @@ function StartGate({ onStart }) {
   )
 }
 
-function Board({ state }) {
+function Board({ state, code }) {
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const highest = BigInt(state?.highestBid || 0)
   const open = Number(state?.openLotId || 0) !== 0
@@ -90,7 +99,7 @@ function Board({ state }) {
         }}
       >
         <LotStage state={state} highest={highest} remaining={remaining} live={live} sold={sold} />
-        {live ? <RaceLane state={state} /> : <SidePanel state={state} />}
+        {live ? <RaceLane state={state} /> : <SidePanel state={state} code={code} />}
       </section>
 
       <PurseStrip state={state} />
@@ -243,14 +252,14 @@ function RaceLane({ state }) {
   )
 }
 
-function SidePanel({ state }) {
+function SidePanel({ state, code }) {
   const [qr, setQr] = useState(null)
   const [url, setUrl] = useState('')
 
   useEffect(() => {
-    const origin = window.location.origin
-    setUrl(origin)
-    QRCode.toDataURL(origin, {
+    const target = `${window.location.origin}/r/${code}`
+    setUrl(target)
+    QRCode.toDataURL(target, {
       width: 460,
       margin: 1,
       color: { dark: '#0e100f', light: '#ffffff' },
@@ -258,7 +267,7 @@ function SidePanel({ state }) {
     })
       .then(setQr)
       .catch(() => {})
-  }, [])
+  }, [code])
 
   return (
     <aside style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>

@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
  *  - Never throws on a blip; keeps the last good state so the screen freezes
  *    rather than blanking.
  */
-export function useAuction({ live = false, intervalMs = 1000 } = {}) {
+export function useAuction({ roomId, live = false, intervalMs = 1000 } = {}) {
   const [state, setState] = useState(null)
   const [error, setError] = useState(null)
   const timer = useRef(null)
@@ -22,8 +22,13 @@ export function useAuction({ live = false, intervalMs = 1000 } = {}) {
   const onWake = useRef(null)
 
   const fetchOnce = useCallback(async () => {
+    if (!roomId) return null
     try {
-      const res = await fetch(`/api/state${live ? '?live=1' : ''}`, { cache: 'no-store' })
+      const res = await fetch(`/api/state?room=${roomId}${live ? '&live=1' : ''}`, { cache: 'no-store' })
+      if (res.status === 404) {
+        if (mounted.current) setError('room not found')
+        return null
+      }
       if (!res.ok) throw new Error(`state ${res.status}`)
       const data = await res.json()
       if (mounted.current) {
@@ -35,9 +40,10 @@ export function useAuction({ live = false, intervalMs = 1000 } = {}) {
       if (mounted.current) setError(String(err.message || err))
       return null
     }
-  }, [live])
+  }, [roomId, live])
 
   useEffect(() => {
+    if (!roomId) return
     mounted.current = true
 
     const loop = async () => {
@@ -61,7 +67,7 @@ export function useAuction({ live = false, intervalMs = 1000 } = {}) {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
-  }, [fetchOnce, intervalMs])
+  }, [fetchOnce, intervalMs, roomId])
 
   const setWakeHandler = useCallback((fn) => {
     onWake.current = fn

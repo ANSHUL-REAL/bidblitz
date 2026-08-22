@@ -46,12 +46,14 @@ export const MAX_FEE = 200_000_000_000n // 200 gwei — padded, refunded if unus
 // Tight limits. Replace with measured `estimateGas` values +2% once deployed.
 export const GAS = {
   transfer: 21_000n,
-  joinSquad: 60_000n,
-  joinSolo: 95_000n,
-  contribute: 60_000n,
-  placeBid: 72_000n,
-  startLot: 115_000n,
-  sellLot: 140_000n,
+  createRoom: 260_000n, // writes 4 squad purses + the room record
+  joinSquad: 70_000n,
+  joinSolo: 105_000n,
+  contribute: 70_000n,
+  placeBid: 82_000n,    // nested room mapping adds one keccak vs the flat layout
+  startLot: 130_000n,
+  sellLot: 175_000n,    // includes the badge mint and its label
+  closeLot: 60_000n,
 }
 
 export const feeParams = () => ({

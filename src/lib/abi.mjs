@@ -2,11 +2,6 @@
 export const BIDBLITZ_ABI = [
   {
     "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [],
     "name": "AlreadyJoined",
     "type": "error"
   },
@@ -59,12 +54,17 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [],
-    "name": "NotJoined",
+    "name": "NoRoom",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "NotOrganizer",
+    "name": "NotHost",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotJoined",
     "type": "error"
   },
   {
@@ -82,21 +82,27 @@ export const BIDBLITZ_ABI = [
     "inputs": [
       {
         "indexed": true,
-        "internalType": "uint256",
-        "name": "lotId",
-        "type": "uint256"
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
       },
       {
         "indexed": true,
-        "internalType": "uint16",
-        "name": "entityId",
-        "type": "uint16"
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
       },
       {
         "indexed": true,
         "internalType": "address",
         "name": "bidder",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "entityId",
+        "type": "uint16"
       },
       {
         "indexed": false,
@@ -117,6 +123,12 @@ export const BIDBLITZ_ABI = [
   {
     "anonymous": false,
     "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
       {
         "indexed": true,
         "internalType": "address",
@@ -150,6 +162,12 @@ export const BIDBLITZ_ABI = [
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "who",
         "type": "address"
@@ -175,21 +193,27 @@ export const BIDBLITZ_ABI = [
     "inputs": [
       {
         "indexed": true,
-        "internalType": "uint256",
-        "name": "lotId",
-        "type": "uint256"
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
       },
       {
         "indexed": true,
-        "internalType": "uint16",
-        "name": "entityId",
-        "type": "uint16"
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
       },
       {
         "indexed": true,
         "internalType": "address",
         "name": "winner",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "entityId",
+        "type": "uint16"
       },
       {
         "indexed": false,
@@ -212,9 +236,15 @@ export const BIDBLITZ_ABI = [
     "inputs": [
       {
         "indexed": true,
-        "internalType": "uint256",
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint32",
         "name": "lotId",
-        "type": "uint256"
+        "type": "uint32"
       },
       {
         "indexed": false,
@@ -243,9 +273,15 @@ export const BIDBLITZ_ABI = [
     "inputs": [
       {
         "indexed": true,
-        "internalType": "uint256",
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint32",
         "name": "lotId",
-        "type": "uint256"
+        "type": "uint32"
       },
       {
         "indexed": false,
@@ -255,6 +291,31 @@ export const BIDBLITZ_ABI = [
       }
     ],
     "name": "LotUnsold",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "host",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "RoomCreated",
     "type": "event"
   },
   {
@@ -379,6 +440,30 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      }
+    ],
+    "name": "badgeId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "badgeImage",
     "outputs": [
@@ -411,7 +496,13 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      }
+    ],
     "name": "closeLot",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -419,6 +510,11 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
       {
         "internalType": "uint16",
         "name": "entityId",
@@ -432,6 +528,30 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [
+      {
+        "internalType": "string",
+        "name": "rname",
+        "type": "string"
+      }
+    ],
+    "name": "createRoom",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      },
       {
         "internalType": "uint16",
         "name": "",
@@ -455,20 +575,12 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "entityCount",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      },
       {
         "internalType": "address",
         "name": "",
@@ -487,7 +599,13 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      }
+    ],
     "name": "joinSolo",
     "outputs": [
       {
@@ -502,6 +620,11 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
         "internalType": "uint16",
         "name": "squadId",
         "type": "uint16"
@@ -515,9 +638,14 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
         "name": "",
-        "type": "uint256"
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
       }
     ],
     "name": "leadBidder",
@@ -532,24 +660,16 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "lotCount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
         "name": "",
-        "type": "uint256"
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
       }
     ],
     "name": "lotImage",
@@ -566,65 +686,14 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      }
-    ],
-    "name": "lotInfo",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "lname",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "limage",
-        "type": "string"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint96",
-            "name": "highestBid",
-            "type": "uint96"
-          },
-          {
-            "internalType": "uint40",
-            "name": "endsAt",
-            "type": "uint40"
-          },
-          {
-            "internalType": "uint16",
-            "name": "leadEntity",
-            "type": "uint16"
-          },
-          {
-            "internalType": "bool",
-            "name": "sold",
-            "type": "bool"
-          }
-        ],
-        "internalType": "struct BidBlitz.Lot",
-        "name": "l",
-        "type": "tuple"
-      },
-      {
-        "internalType": "address",
-        "name": "bidder",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
+        "internalType": "uint32",
         "name": "",
-        "type": "uint256"
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
       }
     ],
     "name": "lotName",
@@ -641,9 +710,14 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
         "name": "",
-        "type": "uint256"
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
       }
     ],
     "name": "lots",
@@ -686,32 +760,6 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "openLot",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "organizer",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -733,9 +781,14 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
         "name": "lotId",
-        "type": "uint256"
+        "type": "uint32"
       },
       {
         "internalType": "uint96",
@@ -750,6 +803,11 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
       {
         "internalType": "address",
         "name": "who",
@@ -778,10 +836,135 @@ export const BIDBLITZ_ABI = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "limit",
+        "type": "uint32"
+      }
+    ],
+    "name": "recentRooms",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint32",
+            "name": "roomId",
+            "type": "uint32"
+          },
+          {
+            "internalType": "address",
+            "name": "host",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "rname",
+            "type": "string"
+          },
+          {
+            "internalType": "uint32",
+            "name": "lotCount",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "openLot",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint16",
+            "name": "entityCount",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint40",
+            "name": "createdAt",
+            "type": "uint40"
+          }
+        ],
+        "internalType": "struct BidBlitz.RoomCard[]",
+        "name": "out",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
-    "name": "rescue",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "name": "roomCount",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "name": "roomName",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "name": "rooms",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "host",
+        "type": "address"
+      },
+      {
+        "internalType": "uint40",
+        "name": "createdAt",
+        "type": "uint40"
+      },
+      {
+        "internalType": "uint16",
+        "name": "entityCount",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint32",
+        "name": "lotCount",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "openLot",
+        "type": "uint32"
+      },
+      {
+        "internalType": "bool",
+        "name": "exists",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -810,9 +993,14 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
         "name": "lotId",
-        "type": "uint256"
+        "type": "uint32"
       }
     ],
     "name": "sellLot",
@@ -854,6 +1042,11 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
         "internalType": "string",
         "name": "lname",
         "type": "string"
@@ -872,34 +1065,55 @@ export const BIDBLITZ_ABI = [
     "name": "startLot",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
         "name": "id",
-        "type": "uint256"
+        "type": "uint32"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      }
+    ],
     "name": "state",
     "outputs": [
       {
         "components": [
           {
-            "internalType": "uint256",
+            "internalType": "bool",
+            "name": "exists",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "host",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "rname",
+            "type": "string"
+          },
+          {
+            "internalType": "uint32",
             "name": "lotId",
-            "type": "uint256"
+            "type": "uint32"
           },
           {
-            "internalType": "uint256",
+            "internalType": "uint32",
             "name": "openLotId",
-            "type": "uint256"
+            "type": "uint32"
           },
           {
-            "internalType": "uint256",
+            "internalType": "uint32",
             "name": "totalLots",
-            "type": "uint256"
+            "type": "uint32"
           },
           {
             "internalType": "uint96",

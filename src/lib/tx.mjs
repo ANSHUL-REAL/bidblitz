@@ -84,9 +84,21 @@ export class Signer {
     return (await res.json()).hash
   }
 
-  joinSquad(squadId) { return this.send('joinSquad', [squadId], GAS.joinSquad) }
-  joinSolo() { return this.send('joinSolo', [], GAS.joinSolo) }
-  placeBid(lotId, amount) { return this.send('placeBid', [BigInt(lotId), BigInt(amount)], GAS.placeBid) }
+  // --- room-scoped calls -----------------------------------------------------
+  createRoom(name) { return this.send('createRoom', [name], GAS.createRoom) }
+  joinSquad(roomId, squadId) { return this.send('joinSquad', [Number(roomId), squadId], GAS.joinSquad) }
+  joinSolo(roomId) { return this.send('joinSolo', [Number(roomId)], GAS.joinSolo) }
+  placeBid(roomId, lotId, amount) {
+    return this.send('placeBid', [Number(roomId), Number(lotId), BigInt(amount)], GAS.placeBid)
+  }
+
+  // Host-only. The host wallet is the credential — no shared secret, and no
+  // server-side organizer key anywhere in the system.
+  startLot(roomId, name, image, duration) {
+    return this.send('startLot', [Number(roomId), name, image, Number(duration)], GAS.startLot)
+  }
+  sellLot(roomId, lotId) { return this.send('sellLot', [Number(roomId), Number(lotId)], GAS.sellLot) }
+  closeLot(roomId) { return this.send('closeLot', [Number(roomId)], GAS.closeLot) }
 }
 
 /**
