@@ -38,7 +38,7 @@ export default function Home() {
         <div style={{ height: 56 }} />
       </section>
 
-      <HostOrJoin session={session} />
+      <HostOrJoin />
       <About />
       <Faq />
       <Footer />
@@ -212,65 +212,7 @@ function RaceLane() {
 
 /* ------------------------------------------------------------ host / join --- */
 
-function HostOrJoin({ session }) {
-  const router = useRouter()
-  const [mode, setMode] = useState('join')
-  const [code, setCode] = useState('')
-  const [roomTitle, setRoomTitle] = useState('')
-  const [cats, setCats] = useState(['memes'])
-  const [customCat, setCustomCat] = useState('')
-  const [error, setError] = useState('')
-  const [creating, setCreating] = useState(false)
-  const { signer } = session
-
-  const toggleCat = (id) =>
-    setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
-
-  const addCustomCat = () => {
-    const name = customCat.trim()
-    if (!name) return
-    const id = makeCustomCat(name)
-    setCats((c) => (c.includes(id) ? c : [...c, id]))
-    setCustomCat('')
-  }
-
-  function goJoin(e) {
-    e.preventDefault()
-    const id = roomIdFromCode(code)
-    if (!id) return setError('That code does not look right')
-    router.push(`/r/${roomCode(id)}`)
-  }
-
-  async function host(e) {
-    e.preventDefault()
-    if (creating) return
-    setError('')
-    const title = sanitizeRoomName(roomTitle)
-    if (!title) return setError('Give your auction a name')
-    if (!cats.length) return setError('Pick at least one category')
-
-    setCreating(true)
-    try {
-      await signer.syncNonce?.()
-      await signer.createRoom(title, modeForCategories(cats))
-
-      // createRoom returns the id on-chain, but we never wait for a receipt.
-      // Poll the lobby until the room this wallet just made shows up — same
-      // read-the-chain-not-the-receipt rule the rest of the app follows.
-      const mine = await waitForMyRoom(signer.address, title)
-      if (mine) {
-        // Categories are a frontend concept, so remember which ones this room
-        // was made with — the host console reads this to seed its item picker.
-        try { localStorage.setItem(`bidblitz:cats:${mine}`, JSON.stringify(cats)) } catch {}
-        router.push(`/r/${roomCode(mine)}/host`)
-      } else setError('Room sent — check the lobby below in a moment')
-    } catch (err) {
-      setError(String(err?.message || err))
-    } finally {
-      setCreating(false)
-    }
-  }
-
+function HostOrJoin() {
   return (
     <section id="start" style={{ background: '#fff', borderTop: '1px solid #eeecf7' }}>
       <div className="pad-x" style={{ maxWidth: 1000, margin: '0 auto', paddingTop: 76, paddingBottom: 76 }}>
@@ -285,203 +227,39 @@ function HostOrJoin({ session }) {
             Host one, or <span style={{ color: '#6b2de6' }}>join one</span>
           </h2>
           <p style={{ margin: '16px auto 0', fontSize: 19, lineHeight: 1.5, color: '#2a2a3a', maxWidth: '48ch' }}>
-            Auction memes, NFTs, cards, art, a fantasy league, or your own custom
-            lineup. Create a room, share the four-character code, and everyone else
-            is bidding in seconds.
+            Auction memes, NFTs, games, cards, art, a fantasy league, or your own custom
+            lineup. Create a room, share the four-character code, and everyone else is
+            bidding in seconds.
           </p>
-          <a href="/demo" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 16, fontWeight: 700, color: '#5b28d9' }}>
-            No wallet yet? Try the live demo →
-          </a>
         </div>
 
-        <div style={{ maxWidth: 460, margin: '30px auto 0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
-            {[['join', 'Join a room'], ['host', 'Host a room']].map(([key, label]) => (
-              <button
-                key={key}
-                className="btn-plain"
-                onClick={() => { setMode(key); setError('') }}
-                style={{
-                  padding: '14px 0', borderRadius: 12, fontWeight: 700, fontSize: 15,
-                  border: `2px solid ${mode === key ? '#6b2de6' : '#eeecf7'}`,
-                  background: mode === key ? '#efeafd' : '#fff',
-                  color: mode === key ? '#5b28d9' : '#6b6d78',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {mode === 'join' ? (
-            <form onSubmit={goJoin} style={{ background: '#faf8ff', border: '1px solid #eeecf7', borderRadius: 18, padding: 24 }}>
-              <label style={{ display: 'block', fontWeight: 700, fontSize: 13, letterSpacing: '.1em', color: '#6b6d78' }}>
-                ROOM CODE
-              </label>
-              <input
-                className="field"
-                style={{
-                  marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 26,
-                  letterSpacing: '.3em', textAlign: 'center', textTransform: 'uppercase',
-                }}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="0001"
-                maxLength={6}
-                autoComplete="off"
-              />
-              <button
-                className="btn-plain cta-lg"
-                style={{
-                  width: '100%', marginTop: 16, padding: '20px', borderRadius: 14,
-                  background: '#6b2de6', color: '#fff', fontWeight: 700, fontSize: 18,
-                  letterSpacing: '.05em', boxShadow: '0 18px 40px rgba(107,45,230,.3)',
-                }}
-              >
-                ENTER THE ROOM →
-              </button>
-              <p style={{ margin: '12px 0 0', fontSize: 13, color: '#6b6d78', textAlign: 'center' }}>
-                Or just scan the QR on the big screen.
-              </p>
-            </form>
-          ) : !signer ? (
-            <JoinCard session={session} roomName="First, get a wallet" cta="CONTINUE" />
-          ) : (
-            <form onSubmit={host} style={{ background: '#faf8ff', border: '1px solid #eeecf7', borderRadius: 18, padding: 24 }}>
-              <label style={{ display: 'block', fontWeight: 700, fontSize: 13, letterSpacing: '.1em', color: '#6b6d78' }}>
-                AUCTION NAME
-              </label>
-              <input
-                className="field"
-                style={{ marginTop: 8 }}
-                value={roomTitle}
-                onChange={(e) => setRoomTitle(e.target.value)}
-                placeholder="Monad Blitz Hyderabad"
-                maxLength={40}
-              />
-              <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, letterSpacing: '.16em', color: '#6b6d78' }}>
-                  CATEGORIES
-                </span>
-                <span style={{ fontSize: 12, color: '#9c94bd' }}>
-                  {modeForCategories(cats) === 1 ? 'Team draft' : 'Solo bidding'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                {CATEGORIES.map((c) => {
-                  const on = cats.includes(c.id)
-                  return (
-                    <button
-                      type="button"
-                      key={c.id}
-                      className="btn-plain"
-                      onClick={() => toggleCat(c.id)}
-                      title={c.blurb}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px',
-                        borderRadius: 999, fontWeight: 600, fontSize: 14,
-                        border: `1.5px solid ${on ? '#6b2de6' : '#e6e2f5'}`,
-                        background: on ? '#6b2de6' : '#fff',
-                        color: on ? '#fff' : '#3a3c44',
-                      }}
-                    >
-                      <span aria-hidden="true">{c.emoji}</span> {c.label}
-                    </button>
-                  )
-                })}
-
-                {/* host-defined categories */}
-                {cats.filter(isCustomCat).map((id) => (
-                  <button
-                    type="button"
-                    key={id}
-                    className="btn-plain"
-                    onClick={() => toggleCat(id)}
-                    title="Your custom category — tap to remove"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px',
-                      borderRadius: 999, fontWeight: 600, fontSize: 14,
-                      border: '1.5px solid #6b2de6', background: '#6b2de6', color: '#fff',
-                    }}
-                  >
-                    <span aria-hidden="true">✨</span> {catLabel(id)} <span style={{ opacity: .7 }}>×</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* name your own */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <input
-                  className="field"
-                  style={{ fontSize: 14, padding: '10px 14px' }}
-                  value={customCat}
-                  onChange={(e) => setCustomCat(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCat() } }}
-                  placeholder="Add your own category — sneakers, startups, anything"
-                  maxLength={24}
-                />
-                <button
-                  type="button"
-                  className="btn-plain"
-                  onClick={addCustomCat}
-                  disabled={!customCat.trim()}
-                  style={{ padding: '0 18px', borderRadius: 12, fontWeight: 700, border: '1.5px solid #e6e2f5', background: customCat.trim() ? '#efeafd' : '#f3f1fa', color: customCat.trim() ? '#5b28d9' : '#b7b0d4' }}
-                >
-                  Add
-                </button>
-              </div>
-              <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: '#9c94bd' }}>
-                {cats.includes('fantasy')
-                  ? 'Fantasy League runs as a team draft — four squads share a purse. Combine it with anything.'
-                  : 'Pick as many as you like — the room mixes their items. Fantasy League switches it to a team draft.'}
-              </p>
-
-              <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.45, color: '#6b6d78' }}>
-                Your wallet becomes the host — only it can start and sell lots.
-                No admin password to lose.
-              </p>
-              <button
-                className="btn-plain cta-lg"
-                disabled={creating}
-                style={{
-                  width: '100%', marginTop: 16, padding: '20px', borderRadius: 14,
-                  background: creating ? '#ddd7f5' : '#6b2de6', color: creating ? '#9c94bd' : '#fff',
-                  fontWeight: 700, fontSize: 18, letterSpacing: '.05em',
-                  boxShadow: creating ? 'none' : '0 18px 40px rgba(107,45,230,.3)',
-                }}
-              >
-                {creating ? 'Creating your room…' : 'CREATE THE AUCTION →'}
-              </button>
-            </form>
-          )}
-
-          {error && (
-            <p style={{ margin: '14px 0 0', color: '#c0392b', fontSize: 14, textAlign: 'center', wordBreak: 'break-word' }}>
-              {error}
-            </p>
-          )}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 30 }}>
+          <Link
+            href="/host"
+            className="cta-lg"
+            style={{
+              position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', gap: 14,
+              background: '#6b2de6', color: '#fff', padding: '20px 32px', borderRadius: 14,
+              fontWeight: 700, fontSize: 18, letterSpacing: '.05em', boxShadow: '0 18px 40px rgba(107,45,230,.3)',
+            }}
+          >
+            Host an auction <span style={{ fontSize: 20 }}>&#8594;</span>
+          </Link>
+          <Link
+            href="/host"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 28px', borderRadius: 14,
+              border: '2px solid #e6e2f5', background: '#fff', color: '#5b28d9', fontWeight: 700, fontSize: 18,
+            }}
+          >
+            Join with a code
+          </Link>
         </div>
 
         <Lobby />
       </div>
     </section>
   )
-}
-
-/** Poll the lobby for the room this wallet just created. */
-async function waitForMyRoom(address, title, tries = 25) {
-  for (let i = 0; i < tries; i++) {
-    try {
-      const res = await fetch('/api/rooms?limit=12', { cache: 'no-store' })
-      const { rooms = [] } = await res.json()
-      const mine = rooms.find(
-        (r) => r.host?.toLowerCase() === address.toLowerCase() && r.rname === title,
-      )
-      if (mine) return Number(mine.roomId)
-    } catch {}
-    await new Promise((r) => setTimeout(r, 500))
-  }
-  return 0
 }
 
 function Lobby() {

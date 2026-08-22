@@ -9,6 +9,7 @@ import { DemoEngine } from '../../lib/demoEngine'
 import { formatAmount, MON } from '../../lib/format.mjs'
 import { IMAGE_LIBRARY } from '../../lib/lots.mjs'
 import { CATEGORIES, itemsForCategories, isCustomCat, makeCustomCat, catLabel } from '../../lib/categories.mjs'
+import { artFor, imageForItem } from '../../lib/presetArt.mjs'
 
 /**
  * Fully client-side playground. Runs the real product UX — host manager, live
@@ -161,7 +162,7 @@ function HostPane({ snap, engine }) {
 
   const add = () => {
     if (!name.trim()) return
-    engine.queueItem(name, image)
+    engine.queueItem(name, image || artFor(cats[0] || 'memes', name))
     setName(''); setImage('')
   }
   const startNext = () => {
@@ -289,8 +290,9 @@ function HostPane({ snap, engine }) {
             <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '16px 0 8px' }}>QUICK ADD</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {presets.map((lot) => (
-                <button key={lot.name} className="btn-plain" onClick={() => engine.queueItem(lot.name, lot.image)} style={{ padding: '8px 12px', borderRadius: 999, background: '#faf8ff', border: '1px solid #eeecf7', fontSize: 13, fontWeight: 600 }}>
-                  + {lot.name}
+                <button key={lot.name} className="btn-plain" onClick={() => engine.queueItem(lot.name, imageForItem(lot, lot.category))} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, background: '#faf8ff', border: '1px solid #eeecf7', fontSize: 13, fontWeight: 600 }}>
+                  <img src={imageForItem(lot, lot.category)} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'cover' }} />
+                  {lot.name}
                 </button>
               ))}
             </div>

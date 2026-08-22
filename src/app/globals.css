@@ -124,6 +124,13 @@ input, button, select, textarea { font-family: inherit; font-size: 16px; }
   clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
 
+/* Thin on-brand scrollbar for the category card row */
+.cat-scroll::-webkit-scrollbar { height: 8px; }
+.cat-scroll::-webkit-scrollbar-track { background: #eceaf3; border-radius: 999px; }
+.cat-scroll::-webkit-scrollbar-thumb { background: #c9c3e0; border-radius: 999px; }
+.cat-scroll::-webkit-scrollbar-thumb:hover { background: #a99fd0; }
+.cat-scroll { scrollbar-width: thin; scrollbar-color: #c9c3e0 #eceaf3; }
+
 /* ---------------------------------------------------------------------------
    Utilities for /screen and /admin. The landing page is a literal transcription
    and styles everything inline like the source; these two surfaces are ours, so

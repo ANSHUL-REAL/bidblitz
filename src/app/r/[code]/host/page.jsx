@@ -118,6 +118,7 @@ function Console({ code, roomId, state, refetch, signer }) {
           </span>
         </Link>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <Link href={`/r/${code}/leaderboard`} style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78' }}>Board</Link>
           <Link href={`/r/${code}/screen`} style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78' }}>Screen</Link>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', color: '#6b2de6' }}>HOST</span>
         </div>

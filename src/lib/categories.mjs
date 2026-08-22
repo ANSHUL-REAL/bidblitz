@@ -4,12 +4,12 @@ import { MODE } from './modes.mjs'
  * Auction categories — the themes a host can pick when creating a room.
  *
  * A category is mostly a frontend concept: it seeds the item picker with
- * relevant presets and gives the room a face. The one category that changes the
- * on-chain mechanic is Fantasy League, which runs as SQUADS (teams share a
- * purse); every other category runs as SOLO (everyone bids for themselves).
+ * relevant presets, gives the card a face, and (for Fantasy League only) flips
+ * the room to SQUADS — teams share a purse. Every other category is SOLO:
+ * everyone bids for themselves.
  *
- * A host can pick several — a room can auction memes AND NFTs. Custom is the
- * blank slate: no presets, you type everything.
+ * `tint` is the soft gradient behind the emoji on the category card.
+ * A host can pick several, and can also name their own (see makeCustomCat).
  */
 export const CATEGORIES = [
   {
@@ -17,12 +17,16 @@ export const CATEGORIES = [
     emoji: '😂',
     label: 'Memes',
     mode: MODE.SOLO,
-    blurb: 'Meme templates, in-jokes, cursed images',
+    blurb: 'Funny, viral, and internet culture',
+    tint: 'linear-gradient(160deg,#efe7ff,#d9c9ff)',
     items: [
       { name: 'This Is Fine', image: '/lots/thisisfine.jpg' },
       { name: 'Distracted Boyfriend', image: '/lots/distracted.jpg' },
-      { name: 'Last-Minute Git Push', image: '/lots/gitpush.jpg' },
-      { name: 'Whoever Broke The WiFi', image: '/lots/wifi.jpg' },
+      { name: 'Doge', image: '' },
+      { name: 'Stonks', image: '' },
+      { name: 'Gigachad', image: '' },
+      { name: 'Surprised Pikachu', image: '' },
+      { name: 'Crying Wojak', image: '' },
     ],
   },
   {
@@ -30,23 +34,29 @@ export const CATEGORIES = [
     emoji: '🖼️',
     label: 'NFTs',
     mode: MODE.SOLO,
-    blurb: 'PFPs, 1/1s, whole collections',
+    blurb: 'Digital art and collectibles',
+    tint: 'linear-gradient(160deg,#e2f6e9,#c2ead2)',
     items: [
-      { name: 'Genesis PFP #1', image: '/lots/generic-1.jpg' },
-      { name: 'Rare 1/1 Drop', image: '/lots/generic-2.jpg' },
-      { name: 'Floor Sweeper', image: '/lots/generic-3.jpg' },
+      { name: 'Bored Ape #1234', image: '' },
+      { name: 'Mutant Ape', image: '' },
+      { name: 'Monkey Kingdom', image: '' },
+      { name: 'Azuki', image: '' },
+      { name: 'Pudgy Penguin', image: '' },
     ],
   },
   {
-    id: 'fantasy',
-    emoji: '🏏',
-    label: 'Fantasy League',
-    mode: MODE.SQUADS,
-    blurb: 'Draft players onto four teams, IPL-style',
+    id: 'games',
+    emoji: '🎮',
+    label: 'Games',
+    mode: MODE.SOLO,
+    blurb: 'Gaming, eSports and more',
+    tint: 'linear-gradient(160deg,#e3edff,#c4d8fb)',
     items: [
-      { name: 'Virat Kohli', image: '/lots/kohli.jpg' },
-      { name: 'Jasprit Bumrah', image: '/lots/bumrah.jpg' },
-      { name: 'Smriti Mandhana', image: '/lots/mandhana.jpg' },
+      { name: 'Valorant', image: '' },
+      { name: 'CS2', image: '' },
+      { name: 'League of Legends', image: '' },
+      { name: 'Fortnite', image: '' },
+      { name: 'Minecraft', image: '' },
     ],
   },
   {
@@ -54,10 +64,12 @@ export const CATEGORIES = [
     emoji: '🃏',
     label: 'Cards & Collectibles',
     mode: MODE.SOLO,
-    blurb: 'TCG cards, rare collectibles, sneakers',
+    blurb: 'Trading cards and collectibles',
+    tint: 'linear-gradient(160deg,#ffe6e6,#ffc9cf)',
     items: [
-      { name: 'Holo Charizard', image: '/lots/generic-1.jpg' },
-      { name: 'Rookie Card', image: '/lots/generic-2.jpg' },
+      { name: 'Holo Charizard', image: '' },
+      { name: 'Rookie Card', image: '' },
+      { name: 'Rare Foil', image: '' },
     ],
   },
   {
@@ -65,10 +77,12 @@ export const CATEGORIES = [
     emoji: '🎨',
     label: 'Art',
     mode: MODE.SOLO,
-    blurb: 'Generative pieces and 1/1 originals',
+    blurb: 'Paintings, prints and creative work',
+    tint: 'linear-gradient(160deg,#ffe9e0,#ffd0c0)',
     items: [
-      { name: 'Generative Piece #7', image: '/lots/generic-3.jpg' },
-      { name: 'Original 1/1', image: '/lots/generic-1.jpg' },
+      { name: 'Generative Piece #7', image: '' },
+      { name: 'Original 1/1', image: '' },
+      { name: 'Pixel Study', image: '' },
     ],
   },
   {
@@ -76,30 +90,13 @@ export const CATEGORIES = [
     emoji: '📦',
     label: 'IRL Items',
     mode: MODE.SOLO,
-    blurb: 'Real things in the room — swag, gadgets, snacks',
+    blurb: 'Real things in the room',
+    tint: 'linear-gradient(160deg,#fff3d9,#ffe3ab)',
     items: [
-      { name: 'Event Hoodie', image: '/lots/generic-2.jpg' },
-      { name: 'Mechanical Keyboard', image: '/lots/generic-3.jpg' },
+      { name: 'Event Hoodie', image: '' },
+      { name: 'Mechanical Keyboard', image: '' },
+      { name: 'Sticker Pack', image: '' },
     ],
-  },
-  {
-    id: 'awards',
-    emoji: '🔥',
-    label: 'Roast & Awards',
-    mode: MODE.SOLO,
-    blurb: 'Auction the people in the room',
-    items: [
-      { name: 'The Guy Who Deployed To Mainnet', image: '/lots/mainnet.jpg' },
-      { name: 'Most Aggressive Bidder', image: '' },
-    ],
-  },
-  {
-    id: 'custom',
-    emoji: '✏️',
-    label: 'Custom',
-    mode: MODE.SOLO,
-    blurb: 'Blank slate — you type every item yourself',
-    items: [],
   },
 ]
 
@@ -128,3 +125,13 @@ export const isCustomCat = (id) => typeof id === 'string' && id.startsWith('cust
 export const makeCustomCat = (name) => `custom:${String(name).trim().slice(0, 24)}`
 export const catLabel = (id) => (isCustomCat(id) ? id.slice(7) : categoryById(id)?.label ?? id)
 export const catEmoji = (id) => (isCustomCat(id) ? '✨' : categoryById(id)?.emoji ?? '•')
+
+/** Fantasy League is its own mode (team draft), kept out of the mixable
+ * categories on purpose. These are its default draftable players. */
+export const FANTASY_ITEMS = [
+  { name: 'Virat Kohli', image: '' },
+  { name: 'Jasprit Bumrah', image: '' },
+  { name: 'Smriti Mandhana', image: '' },
+  { name: 'Rohit Sharma', image: '' },
+  { name: 'Shubman Gill', image: '' },
+]
