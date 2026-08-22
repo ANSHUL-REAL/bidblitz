@@ -27,9 +27,13 @@ const key = requireEnv('MASTER_KEY')
 const account = accountFor(key)
 const wallet = walletFor(key)
 
-// Constructor args per contract. BidBlitz takes none — squads and lots are
-// created at runtime so a typo never costs a redeploy.
-const args = []
+// Constructor args per contract. BidBlitz takes the winner-badge image URL,
+// which is now immutable (former audit finding M2 — no public setter). Point it
+// at a static asset on your deployed domain; override via BADGE_IMAGE if set.
+const args =
+  name === 'BidBlitz'
+    ? [process.env.BADGE_IMAGE || 'https://bidblitz.vercel.app/badge.png']
+    : []
 
 const before = await publicClient.getBalance({ address: account.address })
 if (before === 0n) {

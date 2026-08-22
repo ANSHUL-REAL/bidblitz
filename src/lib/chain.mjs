@@ -49,7 +49,6 @@ export const GAS = {
   createRoom: 260_000n, // writes 4 squad purses + the room record
   joinSquad: 70_000n,
   joinSolo: 105_000n,
-  contribute: 70_000n,
   placeBid: 82_000n,    // nested room mapping adds one keccak vs the flat layout
   startLot: 130_000n,
   sellLot: 175_000n,    // includes the badge mint and its label

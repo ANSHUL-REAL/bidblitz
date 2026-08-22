@@ -12,9 +12,9 @@ pragma solidity ^0.8.20;
  * versus 2,100 on Ethereum, so the hot path (placeBid) touches exactly two
  * slots — the packed Lot, and leadBidder.
  *
- * Purses are accounting, not custody. sellLot decrements a counter; no MON ever
- * moves on settlement. Nothing can go insolvent and there is no reentrancy
- * surface.
+ * Purses are pure accounting. sellLot decrements a counter; no MON ever moves,
+ * the contract holds no ether and has no payable functions, so it cannot go
+ * insolvent, cannot trap funds, and has no reentrancy surface.
  */
 contract BidBlitz {
     // --- errors (cheaper and smaller than require strings) ---
@@ -29,7 +29,6 @@ contract BidBlitz {
     error ExceedsPurse(uint128 available);
     error BadDuration();
     error BadEntity();
-    error BadAmount();
     error Soulbound();
 
     uint16 public constant SQUAD_COUNT = 4;
@@ -39,10 +38,6 @@ contract BidBlitz {
     /// "12.34 MON", not "0.001"). Only gas is ever real MON.
     uint128 public constant SQUAD_START = 200 ether;
     uint128 public constant SOLO_START = 50 ether;
-
-    /// Real MON sent to contribute() is scaled into that same accounting space,
-    /// so a tiny top-up still visibly moves the purse on screen.
-    uint256 public constant CONTRIBUTION_MULTIPLIER = 1000;
 
     uint40 public constant ANTISNIPE = 3;
     uint40 public constant MAX_DURATION = 300;
@@ -82,6 +77,9 @@ contract BidBlitz {
     mapping(uint32 => mapping(uint32 => string)) public lotName;
     mapping(uint32 => mapping(uint32 => string)) public lotImage;
 
+    /// Set once at deploy. Immutable and shared by every badge — there is no
+    /// global owner to gate a setter, so a public one would let any stranger
+    /// permanently brand every badge in every room (former M2).
     string public badgeImage;
 
     // --- soulbound winner badge (minimal ERC-721) ---
@@ -91,7 +89,6 @@ contract BidBlitz {
 
     event RoomCreated(uint32 indexed roomId, address indexed host, string name);
     event Joined(uint32 indexed roomId, address indexed who, uint16 indexed entityId, bool solo);
-    event Contributed(uint32 indexed roomId, address indexed who, uint16 indexed entityId, uint256 amount, uint128 purse);
     event LotStarted(uint32 indexed roomId, uint32 indexed lotId, string name, string image, uint40 endsAt);
     event BidPlaced(uint32 indexed roomId, uint32 indexed lotId, address indexed bidder, uint16 entityId, uint96 amount, uint40 endsAt);
     event LotSold(uint32 indexed roomId, uint32 indexed lotId, address indexed winner, uint16 entityId, uint96 amount, string name);
@@ -103,6 +100,10 @@ contract BidBlitz {
         if (!r.exists) revert NoRoom();
         if (msg.sender != r.host) revert NotHost();
         _;
+    }
+
+    constructor(string memory badgeImageUrl) {
+        badgeImage = badgeImageUrl;
     }
 
     // ------------------------------------------------------------------ rooms
@@ -147,17 +148,6 @@ contract BidBlitz {
         entities[roomId][id] = Entity({ purse: SOLO_START, spent: 0 });
         entityOf[roomId][msg.sender] = id;
         emit Joined(roomId, msg.sender, id, true);
-    }
-
-    /// Optional top-up. Contributing to a rival is allowed — it is a party game.
-    function contribute(uint32 roomId, uint16 entityId) external payable {
-        Room storage r = rooms[roomId];
-        if (!r.exists) revert NoRoom();
-        if (entityId == 0 || entityId > r.entityCount) revert BadEntity();
-        if (msg.value == 0 || msg.value > 1_000 ether) revert BadAmount();
-        Entity storage e = entities[roomId][entityId];
-        e.purse += uint128(msg.value * CONTRIBUTION_MULTIPLIER);
-        emit Contributed(roomId, msg.sender, entityId, msg.value, e.purse);
     }
 
     // --------------------------------------------------------------- auction
@@ -374,11 +364,6 @@ contract BidBlitz {
     function symbol() external pure returns (string memory) { return "BLITZ"; }
     function ownerOf(uint256 id) external view returns (address) { return _owners[id]; }
     function balanceOf(address o) external view returns (uint256) { return _balances[o]; }
-
-    /// Cosmetic metadata only; first caller wins.
-    function setBadgeImage(string calldata url) external {
-        if (bytes(badgeImage).length == 0) badgeImage = url;
-    }
 
     /// Plain JSON data URI pointing at a static image. Building base64 SVG
     /// on-chain is 1-2KB of bytecode for something nobody imports mid-demo.

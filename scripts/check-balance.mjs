@@ -42,14 +42,14 @@ const mon = Number(formatEther(master[2]))
 console.log(`\n  ${addressUrl(master[1])}\n`)
 console.log(`  ── Budget verdict on ${mon.toFixed(3)} MON ──`)
 if (mon >= 8) {
-  console.log(`  COMFORTABLE. Full scope: 16 lots, 0.05 MON/burner, contribute() + badge NFT.`)
+  console.log(`  COMFORTABLE. Full scope: 16 lots, 0.05 MON/burner, badge NFT on every sell.`)
 } else if (mon >= 4) {
   console.log(`  WORKABLE. Cut in this order as needed:`)
   console.log(`    1. client-side stale-bid guard (biggest lever, also better UX)`)
   console.log(`    2. lazy funding 0.05/burner + top-up below 0.02`)
   console.log(`    3. tight gas limits from measured estimateGas`)
 } else if (mon >= 3) {
-  console.log(`  TIGHT. Drop contribute() and the badge mint. 8 lots, 0.03 MON/burner.`)
+  console.log(`  TIGHT. Drop the badge mint. 8 lots, 0.03 MON/burner.`)
 } else {
   console.log(`  TOO LOW for per-phone transactions.`)
   console.log(`  Switch to batched meta-transactions (burners sign EIP-712, one`)
