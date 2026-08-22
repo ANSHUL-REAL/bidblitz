@@ -235,10 +235,21 @@ function Console({ code, roomId, state, refetch, signer }) {
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12, overflowX: 'auto', paddingBottom: 4 }}>
             <ImageChoice active={image === ''} onClick={() => setImage('')} label="none" />
+            {image && !IMAGE_LIBRARY.includes(image) && <ImageChoice src={image} active onClick={() => {}} />}
             {IMAGE_LIBRARY.map((src) => (
               <ImageChoice key={src} src={src} active={image === src} onClick={() => setImage(src)} />
             ))}
           </div>
+          {/* Custom meme / NFT: paste any image URL. It is stored on-chain as a
+              plain string, so it must be a public link everyone's phone can load
+              (an uploaded file would only exist on your device). */}
+          <input
+            className="field"
+            style={{ marginTop: 8, fontSize: 14 }}
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            placeholder="…or paste an image URL for a custom meme / NFT"
+          />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
             <span style={{ fontSize: 12, color: '#6b6d78', fontWeight: 700, letterSpacing: '.1em' }}>TIMER</span>

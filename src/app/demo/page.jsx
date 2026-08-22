@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { MonadMark } from '../../components/Logo'
 import { RaceTrack } from '../../components/RaceTrack'
+import { Avatar } from '../../components/Avatar'
 import { DemoEngine } from '../../lib/demoEngine'
 import { formatAmount, MON } from '../../lib/format.mjs'
 import { IMAGE_LIBRARY } from '../../lib/lots.mjs'
@@ -118,6 +119,7 @@ function Standings({ snap }) {
             border: '1px solid #eeecf7',
           }}
         >
+          <Avatar seed={b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />
           <span style={{ fontWeight: 700, fontSize: 14, flex: 1 }}>
             {b.name}{b.id === 'you' ? ' (you)' : ''}
           </span>
@@ -182,8 +184,8 @@ function HostPane({ snap, engine }) {
                 <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 30, color: '#6b2de6' }}>
                   {formatAmount(open.highestBid)}<span style={{ fontSize: 13, marginLeft: 4 }}>MON</span>
                 </div>
-                <div style={{ fontSize: 13, color: '#6b6d78' }}>
-                  {open.leadId ? `${engine.nameFor(open.leadId)} leading` : 'no bids yet'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#6b6d78' }}>
+                  {open.leadId ? <><Avatar seed={open.leadId} size={22} /> {engine.nameFor(open.leadId)} leading</> : 'no bids yet'}
                 </div>
               </div>
             </>
@@ -232,8 +234,17 @@ function HostPane({ snap, engine }) {
         <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add anything — a meme, a name, an item…" maxLength={60} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
           <ImageChip active={image === ''} onClick={() => setImage('')} label="no pic" />
+          {image && !IMAGE_LIBRARY.includes(image) && <ImageChip src={image} active onClick={() => {}} />}
           {IMAGE_LIBRARY.map((src) => <ImageChip key={src} src={src} active={image === src} onClick={() => setImage(src)} />)}
+          <label className="btn-plain" style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 10, border: '1.5px dashed #b7b0d4', background: '#faf8ff', display: 'grid', placeItems: 'center', fontSize: 20, color: '#6b2de6', cursor: 'pointer' }} title="Upload an image">
+            +
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+              const f = e.target.files?.[0]; if (f) setImage(URL.createObjectURL(f))
+            }} />
+          </label>
         </div>
+        <input className="field" style={{ marginTop: 8, fontSize: 14 }} value={image.startsWith('blob:') ? '' : image}
+          onChange={(e) => setImage(e.target.value)} placeholder="…or paste an image URL for your meme / NFT" />
         <button className="btn-plain" onClick={add} disabled={!name.trim()} style={{ width: '100%', marginTop: 12, padding: 14, borderRadius: 12, background: name.trim() ? '#efeafd' : '#f3f1fa', color: name.trim() ? '#5b28d9' : '#b7b0d4', fontWeight: 700, border: '2px solid #e6e2f5' }}>
           + Add to queue
         </button>
@@ -380,7 +391,9 @@ function BidderPane({ snap, engine }) {
   return (
     <div style={{ maxWidth: 400, margin: '0 auto', display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12 }}>
-        <span style={{ fontWeight: 700 }}>{you.name}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700 }}>
+          <Avatar seed="you" size={30} ring="#6b2de6" /> {you.name}
+        </span>
         <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800 }}>{formatAmount(you.purse)} <span style={{ fontSize: 12, color: '#6b2de6' }}>MON</span></span>
       </div>
 

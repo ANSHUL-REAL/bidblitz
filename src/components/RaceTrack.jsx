@@ -1,8 +1,7 @@
 'use client'
 import { useMemo } from 'react'
-import { createAvatar } from '@dicebear/core'
-import { adventurer } from '@dicebear/collection'
 import { formatAmount, squadOf, SQUADS, shortAddress } from '../lib/format.mjs'
+import { Avatar } from './Avatar'
 
 /**
  * Direct transcription of the race track from the BidBlitz Hero canvas.
@@ -16,34 +15,6 @@ import { formatAmount, squadOf, SQUADS, shortAddress } from '../lib/format.mjs'
  * rather than the SEED array, falling back to squads racing on purse between
  * lots so the hero is never a dead grid.
  */
-
-/**
- * Same DiceBear "adventurer" faces and background palette the source used, but
- * generated from the npm package instead of hitting api.dicebear.com. Identical
- * output, zero network calls — venue wifi must not be able to break the hero.
- */
-function Avatar({ seed, size = 42 }) {
-  const uri = useMemo(
-    () =>
-      createAvatar(adventurer, {
-        seed: String(seed ?? '?'),
-        radius: 50,
-        backgroundColor: ['ffd5dc', 'c0aede', 'd1d4f9', 'ffdfbf', 'b6e3f4'],
-      }).toDataUri(),
-    [seed],
-  )
-
-  return (
-    <div
-      style={{
-        width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-        boxShadow: 'inset 0 -6px 12px rgba(0,0,0,.07)',
-      }}
-    >
-      <img src={uri} alt="" style={{ width: size, height: size, display: 'block', objectFit: 'cover' }} />
-    </div>
-  )
-}
 
 const SEED_META = [
   { indent: 26, bob: 3.1 },
