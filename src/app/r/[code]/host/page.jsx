@@ -1,5 +1,5 @@
 'use client'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { JoinCard } from '../../../../components/JoinCard'
@@ -9,6 +9,9 @@ import { WithdrawPanel } from '../../../../components/WithdrawPanel'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
 import { formatAmount, entityLabel, SQUADS } from '../../../../lib/format.mjs'
 import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '../../../../lib/lots.mjs'
+import { itemsForCategories, FANTASY_ITEMS } from '../../../../lib/categories.mjs'
+import { imageForItem } from '../../../../lib/presetArt.mjs'
+import { getRoom } from '../../../../lib/supabase'
 
 /**
  * Host console.
@@ -72,6 +75,27 @@ function Console({ code, roomId, state, refetch, signer }) {
   const isOpen = Number(state?.openLotId || 0) !== 0
   const highest = BigInt(state?.highestBid || 0)
   const urgent = isOpen && remaining <= 5
+
+  // The items to offer as one-tap lots come from the categories the host chose
+  // at creation (fantasy rooms use the player roster). This is what the demo
+  // shows; the real console was only showing the meme presets before.
+  const isFantasy = Number(state?.mode) === 1
+  const [cats, setCats] = useState(null)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      let c = null
+      const room = await getRoom(code)
+      if (room?.categories?.length) c = room.categories
+      if (!c) { try { c = JSON.parse(localStorage.getItem(`bidblitz:cats:${roomId}`) || 'null') } catch {} }
+      if (alive) setCats(Array.isArray(c) && c.length ? c : ['memes'])
+    })()
+    return () => { alive = false }
+  }, [code, roomId])
+  const catItems = useMemo(
+    () => (isFantasy ? FANTASY_ITEMS : itemsForCategories(cats || [])),
+    [isFantasy, cats],
+  )
 
   async function run(fn, label) {
     if (busy) return
@@ -291,9 +315,36 @@ function Console({ code, roomId, state, refetch, signer }) {
           </button>
         </section>
 
-        {/* ---------------- presets ---------------- */}
+        {/* -------- items from the host's chosen categories (with icons) -------- */}
+        {catItems.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 12, letterSpacing: '.16em', color: '#6b6d78', margin: '26px 0 10px', fontWeight: 700 }}>
+              {isFantasy ? 'PLAYERS — ONE TAP' : 'FROM YOUR CATEGORIES — ONE TAP'}
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+              {catItems.map((it) => {
+                const img = imageForItem(it, isFantasy ? 'fantasy' : it.category)
+                return (
+                  <button
+                    key={it.name} className="btn-plain" disabled={isOpen || busy}
+                    onClick={() => start(it.name, img)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: 10, textAlign: 'left',
+                      background: '#fff', border: '1px solid #eeecf7', borderRadius: 12, opacity: isOpen ? 0.45 : 1,
+                    }}
+                  >
+                    <img src={img} alt="" style={{ width: 40, height: 40, borderRadius: 9, objectFit: 'cover', background: '#efeafd', flexShrink: 0 }} onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+                    <span style={{ fontWeight: 700, fontSize: 14, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ---------------- meme presets ---------------- */}
         <h2 style={{ fontSize: 12, letterSpacing: '.16em', color: '#6b6d78', margin: '26px 0 10px', fontWeight: 700 }}>
-          PRESETS — ONE TAP
+          MEME PRESETS — ONE TAP
         </h2>
         <div style={{ display: 'grid', gap: 8 }}>
           {PRESET_LOTS.map((lot) => (
