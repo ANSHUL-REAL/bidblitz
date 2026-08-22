@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MonadMark, MonadLockup } from '../components/Logo'
+import { BidBlitzMark, MonadLockup } from '../components/Logo'
 import { RaceTrack } from '../components/RaceTrack'
 import { JoinCard } from '../components/JoinCard'
 import { useDemoRace } from '../lib/demoRace'
@@ -67,7 +67,7 @@ function Header({ session }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <MonadMark size={42} />
+          <BidBlitzMark size={42} />
           <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 30, letterSpacing: '-.02em' }}>
             Bid<span style={{ color: '#6b2de6' }}>Blitz</span>
           </div>
@@ -556,7 +556,7 @@ function Footer() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <MonadMark size={32} />
+          <BidBlitzMark size={32} />
           <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: '-.02em' }}>
             Bid<span style={{ color: '#a983ff' }}>Blitz</span>
           </div>

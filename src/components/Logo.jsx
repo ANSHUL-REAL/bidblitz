@@ -76,11 +76,30 @@ export function MonadLockup({ height = 26, inverted = false, style }) {
   )
 }
 
+/**
+ * BidBlitz brand mark — the speed-lines "B". This is the actual brand asset
+ * (public/brand/bidblitz-mark.png), keyed to transparency from the source art,
+ * not a redraw. Distinct from the Monad diamond (which now only marks "Built on
+ * Monad"). Native art is 367×263, so height drives size and width follows.
+ */
+const BB = '#6b2de6'
+export function BidBlitzMark({ size = 40, style, className }) {
+  return (
+    <img
+      src="/brand/bidblitz-mark.png"
+      alt="BidBlitz"
+      height={size}
+      style={{ display: 'block', height: size, width: 'auto', ...style }}
+      className={className}
+    />
+  )
+}
+
 /** Our own wordmark — the BidBlitz identity, distinct from Monad's. */
 export function BidBlitzLogo({ size = 30, mark = true, markSize }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 11 }}>
-      {mark && <MonadMark size={markSize ?? size * 1.25} />}
+      {mark && <BidBlitzMark size={markSize ?? size * 1.05} />}
       <span
         className="display"
         style={{ fontWeight: 800, fontSize: size, letterSpacing: '-0.02em', textTransform: 'none' }}
@@ -88,6 +107,38 @@ export function BidBlitzLogo({ size = 30, mark = true, markSize }) {
         Bid<span style={{ color: 'var(--monad-purple)' }}>Blitz</span>
       </span>
     </span>
+  )
+}
+
+/** Clean line/solid icons for the landing cards — replaces the emoji. */
+export function GavelIcon({ size = 30, color = BB }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10" />
+      <path d="m16 16 6-6" /><path d="m8 8 6-6" />
+      <path d="m9 7 8 8" /><path d="m21 11-8-8" />
+      <path d="M3 21h9" />
+    </svg>
+  )
+}
+export function TrophyIcon({ size = 30, color = BB }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+  )
+}
+export function ControllerIcon({ size = 30, color = BB }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="6" y1="11" x2="10" y2="11" /><line x1="8" y1="9" x2="8" y2="13" />
+      <line x1="15" y1="12" x2="15.01" y2="12" /><line x1="18" y1="10" x2="18.01" y2="10" />
+      <rect width="20" height="12" x="2" y="6" rx="6" />
+    </svg>
   )
 }
 

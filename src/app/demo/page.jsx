@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { MonadMark } from '../../components/Logo'
+import { BidBlitzMark } from '../../components/Logo'
 import { RaceTrack } from '../../components/RaceTrack'
 import { Avatar } from '../../components/Avatar'
 import { Leaderboard } from '../../components/Leaderboard'
@@ -62,7 +62,7 @@ function DemoInner() {
         }}
       >
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#12121c' }}>
-          <MonadMark size={26} />
+          <BidBlitzMark size={26} />
           <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 20 }}>
             Bid<span style={{ color: '#6b2de6' }}>Blitz</span>
           </span>
@@ -74,7 +74,7 @@ function DemoInner() {
 
       {/* mode toggle — auction vs fantasy draft */}
       <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto' }}>
-        {[['solo', '😂 Auction'], ['squads', '🏏 Fantasy League']].map(([k, label]) => (
+        {[['solo', 'Auction'], ['squads', 'Fantasy League']].map(([k, label]) => (
           <button
             key={k}
             className="btn-plain"
@@ -424,7 +424,7 @@ function ScreenPane({ snap }) {
         </div>
       ) : (
         <div style={{ textAlign: 'center', paddingTop: 60, color: '#8d85b4' }}>
-          <MonadMark size={54} style={{ opacity: 0.4 }} />
+          <BidBlitzMark size={54} style={{ opacity: 0.4 }} />
           <p style={{ fontSize: 18, marginTop: 16 }}>Waiting for the host to start an item…</p>
         </div>
       )}
