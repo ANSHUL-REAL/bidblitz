@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { MonadMark } from '../../components/Logo'
 import { RaceTrack } from '../../components/RaceTrack'
 import { Avatar } from '../../components/Avatar'
@@ -17,18 +18,29 @@ import { artFor, imageForItem, LotImage } from '../../lib/presetArt.mjs'
  * the whole flow is playable with no wallet and no deployed contract.
  */
 export default function Demo() {
-  const engineRef = useRef(null)
-  if (!engineRef.current) engineRef.current = new DemoEngine()
-  const engine = engineRef.current
+  return (
+    <Suspense fallback={null}>
+      <DemoInner />
+    </Suspense>
+  )
+}
 
-  const [snap, setSnap] = useState(() => engine.snapshot())
+function DemoInner() {
+  const params = useSearchParams()
+  const [mode, setMode] = useState(params.get('mode') === 'fantasy' ? 'squads' : 'solo')
   const [view, setView] = useState('host')
+  const [snap, setSnap] = useState(null)
+  const engineRef = useRef(null)
 
+  // Rebuild the engine when the mode changes (solo auction vs fantasy draft).
   useEffect(() => {
+    const engine = new DemoEngine(mode)
+    engineRef.current = engine
+    setSnap(engine.snapshot())
     const unsub = engine.subscribe(setSnap)
     engine.start()
     return () => { engine.stop(); unsub() }
-  }, [engine])
+  }, [mode])
 
   // Local clock so the countdown is smooth between engine heartbeats.
   const [, force] = useState(0)
@@ -36,6 +48,9 @@ export default function Demo() {
     const id = setInterval(() => force((n) => n + 1), 100)
     return () => clearInterval(id)
   }, [])
+
+  const engine = engineRef.current
+  if (!snap || !engine) return null
 
   return (
     <div style={{ minHeight: '100dvh', background: '#f1f0f9', fontFamily: "'DM Sans',system-ui,sans-serif", color: '#12121c' }}>
@@ -57,15 +72,34 @@ export default function Demo() {
         </span>
       </header>
 
+      {/* mode toggle — auction vs fantasy draft */}
+      <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto' }}>
+        {[['solo', '😂 Auction'], ['squads', '🏏 Fantasy League']].map(([k, label]) => (
+          <button
+            key={k}
+            className="btn-plain"
+            onClick={() => setMode(k)}
+            style={{
+              flex: 1, padding: '13px 0', borderRadius: 12, fontWeight: 800, fontSize: 15,
+              border: `2px solid ${mode === k ? '#6b2de6' : '#e6e2f5'}`,
+              background: mode === k ? '#6b2de6' : '#fff',
+              color: mode === k ? '#fff' : '#6b6d78',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* view switcher */}
-      <div style={{ display: 'flex', gap: 6, padding: '12px 16px 0', maxWidth: 900, margin: '0 auto' }}>
-        {[['host', 'Host manager'], ['screen', 'Big screen'], ['bidder', 'Bidder phone']].map(([k, label]) => (
+      <div style={{ display: 'flex', gap: 6, padding: '10px 16px 0', maxWidth: 900, margin: '0 auto' }}>
+        {[['host', 'Host manager'], ['screen', 'Big screen'], ['bidder', mode === 'squads' ? 'Team' : 'Bidder']].map(([k, label]) => (
           <button
             key={k}
             className="btn-plain"
             onClick={() => setView(k)}
             style={{
-              flex: 1, padding: '12px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+              flex: 1, padding: '11px 0', borderRadius: 12, fontWeight: 700, fontSize: 13,
               border: `2px solid ${view === k ? '#6b2de6' : '#e6e2f5'}`,
               background: view === k ? '#efeafd' : '#fff',
               color: view === k ? '#5b28d9' : '#6b6d78',
@@ -94,10 +128,10 @@ function remainingOf(openLot) {
 
 function racersFrom(snap) {
   const lot = snap.openLot
-  const names = Object.fromEntries(snap.bidders.map((b) => [b.id, b.name]))
+  const meta = Object.fromEntries(snap.bidders.map((b) => [b.id, b]))
   if (lot && Object.keys(lot.bids || {}).length) {
     return Object.entries(lot.bids)
-      .map(([id, amt]) => ({ key: id, label: names[id] || id, amount: amt, seed: id }))
+      .map(([id, amt]) => ({ key: id, label: meta[id]?.name || id, amount: amt, seed: id, color: meta[id]?.color || null }))
       .sort((a, b) => (BigInt(b.amount) > BigInt(a.amount) ? 1 : -1))
       .slice(0, 5)
   }
@@ -105,7 +139,7 @@ function racersFrom(snap) {
   return [...snap.bidders]
     .sort((a, b) => (b.purse > a.purse ? 1 : -1))
     .slice(0, 5)
-    .map((b) => ({ key: b.id, label: b.name, amount: b.purse, seed: b.id }))
+    .map((b) => ({ key: b.id, label: b.name, amount: b.purse, seed: b.id, color: b.color || null }))
 }
 
 function Standings({ snap, dark = false }) {
@@ -127,7 +161,9 @@ function Standings({ snap, dark = false }) {
           }}
         >
           <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: '#9c94bd', width: 16, textAlign: 'right' }}>{b.rank}</span>
-          <Avatar seed={b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />
+          {b.color
+            ? <span style={{ width: 26, height: 26, borderRadius: 8, background: b.color, flexShrink: 0 }} />
+            : <Avatar seed={b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />}
           <span style={{ fontWeight: 700, fontSize: 14, flex: 1, color: dark ? '#fff' : '#12121c' }}>
             {b.name}{b.id === 'you' ? ' (you)' : ''}
           </span>
@@ -414,7 +450,10 @@ function BidderPane({ snap, engine }) {
     <div style={{ maxWidth: 400, margin: '0 auto', display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700 }}>
-          <Avatar seed="you" size={30} ring="#6b2de6" /> {you.name}
+          {you.color && you.name !== 'You'
+            ? <span style={{ width: 26, height: 26, borderRadius: 8, background: you.color }} />
+            : <Avatar seed="you" size={30} ring="#6b2de6" />}
+          {you.name}
         </span>
         <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800 }}>{formatAmount(you.purse)} <span style={{ fontSize: 12, color: '#6b2de6' }}>MON</span></span>
       </div>

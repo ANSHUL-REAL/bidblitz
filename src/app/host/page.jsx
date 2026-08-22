@@ -73,10 +73,6 @@ function HostInner() {
 
         {tab === 'join' ? (
           <JoinTab onGo={(code) => router.push(`/r/${code}`)} />
-        ) : !session.signer ? (
-          <div style={{ maxWidth: 460, margin: '0 auto' }}>
-            <JoinCard session={session} roomName="First, get a wallet" cta="CONTINUE" />
-          </div>
         ) : (
           <CreateTab session={session} router={router} />
         )}
@@ -159,7 +155,7 @@ function CreateTab({ session, router }) {
   }
 
   return (
-    <form onSubmit={create} style={{ background: '#fafafd', border: '1px solid #eeecf7', borderRadius: 20, padding: 24 }}>
+    <div style={{ background: '#fafafd', border: '1px solid #eeecf7', borderRadius: 20, padding: 24 }}>
       {/* Two distinct kinds of room. Fantasy League is separate — a team draft,
           never mixed with the solo/meme categories. */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -217,20 +213,34 @@ function CreateTab({ session, router }) {
         Your wallet becomes the host — only it can start and sell lots. No admin password to lose.
       </p>
 
-      <button
-        className="btn-plain"
-        disabled={creating}
-        style={{
-          width: '100%', marginTop: 18, padding: 22, borderRadius: 16,
-          background: creating ? '#ddd7f5' : '#6b2de6', color: creating ? '#9c94bd' : '#fff',
-          fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '.05em', textTransform: 'uppercase',
-          boxShadow: creating ? 'none' : '0 18px 40px rgba(107,45,230,.3)',
-        }}
-      >
-        {creating ? 'Creating…' : isFantasy ? 'Create the league →' : 'Create the auction →'}
-      </button>
+      {signer ? (
+        <button
+          type="button"
+          onClick={create}
+          className="btn-plain"
+          disabled={creating}
+          style={{
+            width: '100%', marginTop: 18, padding: 22, borderRadius: 16,
+            background: creating ? '#ddd7f5' : '#6b2de6', color: creating ? '#9c94bd' : '#fff',
+            fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '.05em', textTransform: 'uppercase',
+            boxShadow: creating ? 'none' : '0 18px 40px rgba(107,45,230,.3)',
+          }}
+        >
+          {creating ? 'Creating…' : isFantasy ? 'Create the league →' : 'Create the auction →'}
+        </button>
+      ) : (
+        // No wallet yet: still show the (distinct) setup above, and gate only the
+        // final create step behind sign-in — so Auction and Fantasy never collapse
+        // to the same screen.
+        <div style={{ marginTop: 18, padding: 16, borderRadius: 16, background: '#fff', border: '1px dashed #cdc2f0' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#5b28d9', marginBottom: 12, textAlign: 'center' }}>
+            One step left — get a wallet to {isFantasy ? 'launch your league' : 'open your auction'}
+          </div>
+          <JoinCard session={session} roomName={isFantasy ? 'Fantasy League' : 'Your auction'} cta="CONTINUE" />
+        </div>
+      )}
 
       {error && <p style={{ margin: '14px 0 0', color: '#c0392b', fontSize: 14, textAlign: 'center', wordBreak: 'break-word' }}>{error}</p>}
-    </form>
+    </div>
   )
 }

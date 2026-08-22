@@ -1,5 +1,6 @@
 'use client'
-import { MON } from './format.mjs'
+import { MON, SQUADS } from './format.mjs'
+import { FANTASY_ITEMS } from './categories.mjs'
 
 /**
  * A complete auction, simulated in the browser — no chain, no wallet, no server.
@@ -20,29 +21,68 @@ const MIN_STEP = MON / 2n // 0.5 MON
 
 const uid = (() => { let n = 0; return () => `d${++n}` })()
 
+/** Solo / meme auction: you + individual bot bidders, each with their own purse. */
+function soloState() {
+  return {
+    roomName: 'Demo Auction',
+    mode: 0,
+    you: { id: 'you', name: 'You', color: '#6b2de6', purse: START_PURSE, spent: 0n, wins: 0, bids: 0 },
+    bots: BOT_NAMES.slice(0, 6).map((name, i) => ({
+      id: `bot${i}`,
+      name,
+      color: null,
+      purse: START_PURSE,
+      spent: 0n,
+      wins: 0,
+      bids: 0,
+      aggression: 0.3 + (i % 4) * 0.18,
+      patience: 500 + i * 250,
+      ceiling: 20n * MON + BigInt(i) * 4n * MON,
+      lastAct: 0,
+    })),
+    queue: [],
+    lots: [],
+    openLotId: null,
+    now: Date.now(),
+  }
+}
+
+/**
+ * Fantasy League: four teams share a purse and draft players. "You" ARE a team
+ * (the first squad); the other three are bot-run. Same auction machinery — the
+ * bidding entity is just a team instead of a person. Players are preloaded so
+ * the draft can start immediately.
+ */
+function squadsState() {
+  const [mine, ...rest] = SQUADS
+  return {
+    roomName: 'Fantasy League',
+    mode: 1,
+    you: { id: 'you', name: mine.name, color: mine.color, purse: 200n * MON, spent: 0n, wins: 0, bids: 0 },
+    bots: rest.map((tm, i) => ({
+      id: `team${tm.id}`,
+      name: tm.name,
+      color: tm.color,
+      purse: 200n * MON,
+      spent: 0n,
+      wins: 0,
+      bids: 0,
+      aggression: 0.45 + i * 0.12,
+      patience: 550 + i * 220,
+      ceiling: 70n * MON + BigInt(i) * 12n * MON,
+      lastAct: 0,
+    })),
+    queue: FANTASY_ITEMS.map((p) => ({ id: uid(), name: p.name, image: '' })),
+    lots: [],
+    openLotId: null,
+    now: Date.now(),
+  }
+}
+
 export class DemoEngine {
-  constructor() {
-    this.state = {
-      roomName: 'Demo Auction',
-      mode: 0, // solo/meme
-      you: { id: 'you', name: 'You', purse: START_PURSE, spent: 0n, wins: 0, bids: 0 },
-      bots: BOT_NAMES.slice(0, 6).map((name, i) => ({
-        id: `bot${i}`,
-        name,
-        purse: START_PURSE,
-        spent: 0n,
-        wins: 0,
-        bids: 0,
-        aggression: 0.3 + (i % 4) * 0.18, // chance to bid each tick
-        patience: 500 + i * 250,          // ms between attempts
-        ceiling: 20n * MON + BigInt(i) * 4n * MON, // won't chase past this on a lot
-        lastAct: 0,
-      })),
-      queue: [],   // {id, name, image}
-      lots: [],    // {id, name, image, status, endsAt, highestBid, leadId, winnerId}
-      openLotId: null,
-      now: Date.now(),
-    }
+  constructor(mode = 'solo') {
+    this.mode = mode === 'squads' ? 'squads' : 'solo'
+    this.state = this.mode === 'squads' ? squadsState() : soloState()
     this.subs = new Set()
     this.timer = null
   }
@@ -67,7 +107,7 @@ export class DemoEngine {
       roomName: s.roomName,
       mode: s.mode,
       you: { ...s.you },
-      bidders: bidders.map((b) => ({ id: b.id, name: b.name, purse: b.purse, spent: b.spent, wins: b.wins, bids: b.bids })),
+      bidders: bidders.map((b) => ({ id: b.id, name: b.name, color: b.color, purse: b.purse, spent: b.spent, wins: b.wins, bids: b.bids })),
       queue: s.queue.map((q) => ({ ...q })),
       lots: s.lots.map((l) => ({ ...l })),
       openLot: openLot ? { ...openLot } : null,
