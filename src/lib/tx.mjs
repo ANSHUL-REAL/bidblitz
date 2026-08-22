@@ -60,37 +60,44 @@ export class Signer {
     if (this.nonce === null) await this.syncNonce()
 
     const data = encodeFunctionData({ abi: BIDBLITZ_ABI, functionName, args })
-    const nonce = this.nonce
 
-    const raw = await this.account.signTransaction({
-      to: CONTRACT,
-      data,
-      gas,
-      maxFeePerGas: MAX_FEE,
-      maxPriorityFeePerGas: MAX_PRIORITY_FEE,
-      nonce,
-      chainId: monad.id,
-      type: 'eip1559',
-      value: BigInt(value || 0n),
-    })
+    // Two attempts: a nonce mismatch (local counter fell behind the chain after
+    // a page nav, or ran ahead of a dropped tx) is recoverable — trust the chain
+    // and retry once, so the host/bidder never has to manually refresh mid-event.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const nonce = this.nonce
+      const raw = await this.account.signTransaction({
+        to: CONTRACT,
+        data,
+        gas,
+        maxFeePerGas: MAX_FEE,
+        maxPriorityFeePerGas: MAX_PRIORITY_FEE,
+        nonce,
+        chainId: monad.id,
+        type: 'eip1559',
+        value: BigInt(value || 0n),
+      })
 
-    // Optimistic: advance immediately so rapid taps don't collide. A failed send
-    // rolls it back, and syncNonce() repairs anything that drifts.
-    this.nonce = nonce + 1
+      // Optimistic: advance immediately so rapid taps don't collide.
+      this.nonce = nonce + 1
 
-    const res = await fetch('/api/send', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ raw }),
-    })
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw }),
+      })
 
-    if (!res.ok) {
-      this.nonce = nonce
+      if (res.ok) return (await res.json()).hash
+
+      this.nonce = nonce // roll back the optimistic bump
       const { error } = await res.json().catch(() => ({}))
+      if (attempt === 0 && /nonce/i.test(String(error || ''))) {
+        // Hard-resync to what the chain actually reports, then retry.
+        this.nonce = await readClient.getTransactionCount({ address: this.address, blockTag: 'latest' })
+        continue
+      }
       throw new Error(error || `send failed (${res.status})`)
     }
-
-    return (await res.json()).hash
   }
 
   // --- room-scoped calls -----------------------------------------------------
