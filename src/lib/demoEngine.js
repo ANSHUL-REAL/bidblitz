@@ -87,7 +87,14 @@ export class DemoEngine {
     this.state = this.mode === 'squads' ? squadsState() : soloState()
     this.subs = new Set()
     this.timer = null
+    this.ai = false          // AI bidders via /api/agent (OpenRouter)
+    this.aiReason = null     // last { name, text } to show on screen
+    this.lastAI = 0
+    this.aiIdx = 0
   }
+
+  /** Turn AI bidders on/off. Falls back to heuristic bots if there is no key. */
+  setAI(on) { this.ai = !!on; if (!on) this.aiReason = null; this.emit() }
 
   subscribe(cb) {
     this.subs.add(cb)
@@ -113,6 +120,7 @@ export class DemoEngine {
       queue: s.queue.map((q) => ({ ...q })),
       lots: s.lots.map((l) => ({ ...l })),
       openLot: openLot ? { ...openLot } : null,
+      aiReason: this.aiReason,
       now: Date.now(),
     }
   }
@@ -237,6 +245,13 @@ export class DemoEngine {
     if (!lot || lot.status !== 'live') { this.emit(); return }
     if (Date.now() >= lot.endsAt) { this.emit(); return }
 
+    // AI bidders: fire a model decision every ~2.2s when enabled. Runs alongside
+    // the heuristic bots below (which guarantee cadence), and no-ops on fallback.
+    if (this.ai && Date.now() - this.lastAI > 2200) {
+      this.lastAI = Date.now()
+      this.aiTurn(lot)
+    }
+
     const t = Date.now()
     for (const bot of this.state.bots) {
       if (t - bot.lastAct < bot.patience) continue
@@ -250,5 +265,52 @@ export class DemoEngine {
       return // one bot bid per tick keeps it watchable
     }
     this.emit()
+  }
+
+  /**
+   * One AI decision for the next eligible bot, via /api/agent (OpenRouter). On a
+   * fallback/timeout it does nothing and the heuristic bots carry the round; on
+   * a real answer it bids (or passes) and surfaces the model's reasoning.
+   */
+  async aiTurn(lot) {
+    try {
+      const bots = this.state.bots
+      let bot = null
+      for (let i = 0; i < bots.length; i++) {
+        const cand = bots[(this.aiIdx + i) % bots.length]
+        if (lot.leadId !== cand.id && cand.purse > lot.highestBid) {
+          bot = cand; this.aiIdx = (this.aiIdx + i + 1) % bots.length; break
+        }
+      }
+      if (!bot) return
+
+      const toMon = (w) => Number(w) / 1e18
+      const timeLeft = Math.max(0, (lot.endsAt - Date.now()) / 1000)
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          item: lot.name, currentBid: toMon(lot.highestBid), budget: toMon(bot.purse),
+          persona: bot.name, timeLeft, minStep: toMon(MIN_STEP),
+        }),
+      }).then((r) => r.json()).catch(() => null)
+
+      if (!res || res.action === 'fallback') return
+      const cur = this.state.lots.find((l) => l.id === lot.id)
+      if (!cur || cur.status !== 'live' || Date.now() >= cur.endsAt) return
+
+      if (res.action === 'pass') {
+        this.aiReason = { name: bot.name, text: res.reasoning || 'Holding back on this one.' }
+        this.emit(); return
+      }
+      let amount = BigInt(Math.max(0, Math.round(Number(res.amount) * 1000))) * (MON / 1000n)
+      if (amount <= cur.highestBid) amount = cur.highestBid + MIN_STEP
+      if (amount > bot.purse) {
+        this.aiReason = { name: bot.name, text: res.reasoning || 'Out of budget — passing.' }
+        this.emit(); return
+      }
+      this.aiReason = { name: bot.name, text: res.reasoning || 'Going higher.' }
+      this.placeBid(bot.id, amount)
+    } catch { /* never let the AI break the demo */ }
   }
 }

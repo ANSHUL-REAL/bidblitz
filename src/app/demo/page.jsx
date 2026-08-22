@@ -30,6 +30,7 @@ function DemoInner() {
   const [mode, setMode] = useState(params.get('mode') === 'fantasy' ? 'squads' : 'solo')
   const [view, setView] = useState('host')
   const [snap, setSnap] = useState(null)
+  const [aiOn, setAiOn] = useState(false)
   const engineRef = useRef(null)
 
   // Rebuild the engine when the mode changes (solo auction vs fantasy draft).
@@ -49,6 +50,9 @@ function DemoInner() {
     return () => clearInterval(id)
   }, [])
 
+  // Re-apply the AI toggle whenever it changes or the engine is recreated (mode).
+  useEffect(() => { engineRef.current?.setAI(aiOn) }, [aiOn, mode])
+
   const engine = engineRef.current
   if (!snap || !engine) return null
 
@@ -67,10 +71,33 @@ function DemoInner() {
             Bid<span style={{ color: '#6b2de6' }}>Blitz</span>
           </span>
         </Link>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', color: '#6b2de6', background: '#efeafd', padding: '6px 10px', borderRadius: 999 }}>
-          DEMO · NO WALLET
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className="btn-plain"
+            onClick={() => setAiOn((v) => !v)}
+            title="Bots decide via OpenRouter (needs OPENROUTER_API_KEY; falls back to scripted bots)"
+            style={{
+              fontSize: 12, fontWeight: 800, letterSpacing: '.04em', padding: '6px 12px', borderRadius: 999,
+              border: `2px solid ${aiOn ? '#6b2de6' : '#e6e2f5'}`,
+              background: aiOn ? '#6b2de6' : '#fff', color: aiOn ? '#fff' : '#6b6d78',
+            }}
+          >
+            🤖 AI bidders {aiOn ? 'ON' : 'OFF'}
+          </button>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', color: '#6b2de6', background: '#efeafd', padding: '6px 10px', borderRadius: 999 }}>
+            DEMO · NO WALLET
+          </span>
+        </div>
       </header>
+
+      {aiOn && snap.aiReason && (
+        <div style={{ maxWidth: 900, margin: '10px auto 0', padding: '0 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, background: '#0e100f', color: '#fff' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.08em', color: '#9d8bff', flexShrink: 0 }}>🤖 {snap.aiReason.name}</span>
+            <span style={{ fontSize: 14, color: '#e7e3ff' }}>"{snap.aiReason.text}"</span>
+          </div>
+        </div>
+      )}
 
       {/* mode toggle — auction vs fantasy draft */}
       <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto' }}>
