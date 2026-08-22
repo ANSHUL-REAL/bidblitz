@@ -25,9 +25,12 @@ create table if not exists public.rooms (
   host_name   text,
   host_addr   text,
   categories  jsonb not null default '[]'::jsonb,
+  fund_amount numeric,                          -- host-set MON to airdrop each joiner (randomised); null = default
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+-- For projects created before fund_amount existed:
+alter table public.rooms add column if not exists fund_amount numeric;
 
 -- Item roster -------------------------------------------------------------
 -- The lots a host plans to run. A row becomes a live lot when it is started

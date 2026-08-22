@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readContract } from 'viem/actions'
 import { BIDBLITZ_ABI } from './abi.mjs'
 import { Signer, readClient, squadForAddress, requestFunding, waitForArming, CONTRACT } from './tx.mjs'
+import { roomCode } from './room.mjs'
 import { InjectedSigner } from './wallet.mjs'
 import { deriveAccount, loadIdentity, saveIdentity, clearIdentity } from './identity.mjs'
 
@@ -62,8 +63,9 @@ export function useSession(roomId) {
   const fundAndArm = useCallback(async (s) => {
     if ((await s.balance()) > 0n) return
 
+    const rc = roomId ? roomCode(roomId) : null  // lets the relayer use the host-set amount
     setStatus('Funding your wallet…')
-    const fund = await requestFunding(s.address)
+    const fund = await requestFunding(s.address, false, rc)
 
     const deadline = Date.now() + 20000
     let funded = false
@@ -72,7 +74,7 @@ export function useSession(roomId) {
       await new Promise((r) => setTimeout(r, 400))
     }
     if (!funded) {
-      await requestFunding(s.address, true) // force: break a stale lock
+      await requestFunding(s.address, true, rc) // force: break a stale lock
       await new Promise((r) => setTimeout(r, 2500))
     }
 
@@ -81,7 +83,7 @@ export function useSession(roomId) {
     // excluded at consensus, silently, with no receipt and no revert.
     setStatus('Arming your wallet…')
     await waitForArming(await readClient.getBlockNumber(), fund?.armBlocks ?? 4)
-  }, [])
+  }, [roomId])
 
   const finishJoin = useCallback(async (s) => {
     if (!roomId) return

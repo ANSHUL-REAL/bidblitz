@@ -149,11 +149,11 @@ export async function waitForArming(fromBlock, blocks = 4) {
   return false
 }
 
-export async function requestFunding(address, force = false) {
+export async function requestFunding(address, force = false, roomCode = null) {
   const res = await fetch('/api/fund', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ address, force }),
+    body: JSON.stringify({ address, force, roomCode }),
   })
   if (!res.ok) {
     const { error } = await res.json().catch(() => ({}))

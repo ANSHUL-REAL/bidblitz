@@ -17,15 +17,47 @@ const FUND_AMOUNT = parseEther(process.env.FUND_AMOUNT || '0.05')
 // topped up — which is exactly the moment they need it.
 const MIN_BALANCE = parseEther(process.env.MIN_BALANCE || '0.02')
 
+// A host can set how much MON to airdrop each joiner (per room). We randomise it
+// 0.5×–1.5× so the distribution varies, and HARD-cap it server-side so a stray
+// (or malicious) setting can never drain the relayer pool.
+const MAX_FUND = parseEther(process.env.FUND_MAX || '2')
+const MIN_FUND = parseEther('0.02')
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+/** The host-set per-joiner MON for a room (wei), or null to use the default. */
+async function roomFundAmount(code) {
+  if (!SB_URL || !SB_KEY || !code) return null
+  try {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/rooms?code=eq.${encodeURIComponent(String(code).toUpperCase())}&select=fund_amount`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, cache: 'no-store' },
+    )
+    if (!res.ok) return null
+    const rows = await res.json()
+    const v = rows?.[0]?.fund_amount
+    return v == null ? null : parseEther(String(v))
+  } catch { return null }
+}
+
+function randomisedFund(base) {
+  const b = base ?? FUND_AMOUNT
+  const factor = 500 + Math.floor(Math.random() * 1000) // 0.500×–1.499×
+  let amt = (b * BigInt(factor)) / 1000n
+  if (amt < MIN_FUND) amt = MIN_FUND
+  if (amt > MAX_FUND) amt = MAX_FUND
+  return amt
+}
+
 export async function POST(request) {
   const keys = relayerKeys()
   if (!keys.length) {
     return Response.json({ error: 'RELAYER_KEYS not set — run: npm run wallets' }, { status: 503 })
   }
 
-  let address, force
+  let address, force, roomCode
   try {
-    ({ address, force } = await request.json())
+    ({ address, force, roomCode } = await request.json())
   } catch {
     return Response.json({ error: 'bad request body' }, { status: 400 })
   }
@@ -55,12 +87,15 @@ export async function POST(request) {
   const wallet = relayerWallet(key)
   const relayer = privateKeyToAccount(key).address
 
+  // Host-configurable, randomised, hard-capped airdrop for this joiner.
+  const amount = randomisedFund(await roomFundAmount(roomCode))
+
   let nonce
   try {
     nonce = await nextNonce(idx)
     const hash = await wallet.sendTransaction({
       to: address,
-      value: FUND_AMOUNT,
+      value: amount,
       gas: GAS.transfer, // exactly 21000 — never estimate, never pad; billed on limit
       nonce,
       ...feeParams(),
@@ -71,7 +106,7 @@ export async function POST(request) {
       hash,
       relayer: idx,
       nonce,
-      amount: FUND_AMOUNT.toString(),
+      amount: amount.toString(),
       // The client must wait ~4 blocks after this lands before bidding. A wallet
       // funded at block B had zero balance at B-3, and Monad's reserve-balance
       // rule computes the inflight gas budget from that lagged state — so its

@@ -173,3 +173,14 @@ export async function participantCounts(codes) {
     return out
   } catch { return {} }
 }
+
+/** Host sets how much MON to airdrop each joiner (MON, randomised server-side). */
+export async function updateRoomFunding(code, amountMon) {
+  if (!supabase || !code) return fail('no-supabase')
+  try {
+    const { error } = await supabase.from('rooms')
+      .update({ fund_amount: amountMon == null || amountMon === '' ? null : Number(amountMon) })
+      .eq('code', code)
+    return error ? fail(error) : ok(true)
+  } catch (e) { return fail(e) }
+}
