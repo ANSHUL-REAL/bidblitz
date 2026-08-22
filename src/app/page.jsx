@@ -471,11 +471,13 @@ function About() {
 
 const FAQS = [
   ['Do I need a crypto wallet?', 'No. Your name and password generate a burner wallet right in the browser, and it is funded for you automatically. If you already have MetaMask, Rabby, OKX or Backpack you can connect that instead. Lace will not work — it is a Cardano wallet and cannot talk to an EVM chain like Monad.'],
-  ['How do I host my own auction?', 'Hit Host a room, name it, and share the four-character code. The wallet that creates the room becomes its host, and only that wallet can start or sell lots — there is no admin password to share or lose.'],
-  ['Is this real money?', 'No. Everything runs on Monad testnet with test MON that has no value. Bid amounts are accounting units inside the auction contract.'],
+  ['How do I host my own auction?', 'Hit Host a room, name it, choose Play money or Real payout, and share the four-character code. The wallet that creates the room becomes its host, and only that wallet can start or sell lots — there is no admin password to share or lose.'],
+  ['Play money vs real payout — what is the difference?', 'A Play-money room is a pure game: bids are accounting units, nothing moves, and everyone bids for free (the pool only covers gas). A Real-payout room escrows real testnet MON on every bid: the winning bid is paid to the host and outbid bidders are refunded — real on-chain value, which is what you show as proof.'],
+  ['Is this real money?', 'It is real testnet MON, which has no cash value — but in a Real-payout room it genuinely moves on-chain: escrowed on each bid, refunded on an outbid, and paid to the host on a sale. Play-money rooms move nothing.'],
+  ['How does the host get paid, and how do I get a refund?', 'In a Real-payout room, selling a lot credits the winning bid to the host on-chain; hit Collect in the host console to withdraw it to your wallet. If you were outbid, Claim refund in the room returns your MON. Both produce a transaction you can open on the explorer.'],
+  ['Can I see the transactions live?', 'Yes. Every room has a live history at /r/<code>/history, built straight from on-chain events — every bid, sale, refund and withdrawal links to the real Monad transaction. Hosts and bidders can both watch it.'],
   ['What if I close the tab or my phone dies?', 'Type the same name and password again, on any device. That regenerates the exact same wallet — it is the whole recovery mechanism, and there is no account database behind it.'],
-  ['How do I know the auction is fair?', 'Every bid is a transaction and every sale emits an on-chain event. You can open the block explorer and read who won and for how much without trusting this app at all.'],
-  ['What happens when I win a lot?', 'The winning purse is debited and a soulbound winner badge is minted to your address. It is non-transferable — permanent proof you took that lot.'],
+  ['What happens when I win a lot?', 'A soulbound winner badge is minted to your address (non-transferable proof you took that lot). In a play-money room your purse is debited; in a real-payout room your escrowed bid goes to the host.'],
   ['Why did my bid not go through?', 'Someone beat you to it. Bids must strictly beat the current highest, and ties are broken by block order — the first transaction in wins, deterministically.'],
 ]
 
