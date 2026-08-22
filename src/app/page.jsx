@@ -78,6 +78,7 @@ function Header({ session }) {
             <a className="nav-link" href="#how">How it works</a>
             <a className="nav-link" href="#about">About</a>
             <a className="nav-link" href="#faq">FAQ</a>
+            <a className="nav-link" href="/account">Host login</a>
             <a className="nav-link" href="/demo">Try demo</a>
           </div>
           <a
@@ -276,8 +277,9 @@ function HostOrJoin() {
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Link href="/host?tab=join" style={{ fontWeight: 700, color: '#5b28d9' }}>or join a room with a code →</Link>
         </div>
-
-        <Lobby />
+        {/* No public room list on purpose — events are unlisted and reached only
+            by their code or QR, so a host can run a private event that is never
+            mentioned on the site. */}
       </div>
     </section>
   )

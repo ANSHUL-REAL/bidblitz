@@ -19,13 +19,21 @@ const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // block bidding entirely. Degrade to null instead; every call site guards on it.
 let _client = null
 try {
-  if (URL && KEY) _client = createClient(URL, KEY, { auth: { persistSession: false } })
+  // persistSession so a host stays logged in across reloads (needed for the
+  // account dashboard); autoRefreshToken keeps that session alive.
+  if (URL && KEY) _client = createClient(URL, KEY, { auth: { persistSession: true, autoRefreshToken: true } })
 } catch (e) {
   if (typeof console !== 'undefined') console.warn('[supabase] disabled:', e?.message || e)
 }
 
 export const supabase = _client
 export const hasSupabase = Boolean(_client)
+
+// Only these emails may HOST the featured event; everyone else can join only.
+// Override with NEXT_PUBLIC_HOST_EMAILS (comma-separated) in .env.
+const HOST_EMAILS = (process.env.NEXT_PUBLIC_HOST_EMAILS || 'anshulnautiyal2006@gmail.com')
+  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+export const isHostEmail = (email) => HOST_EMAILS.includes(String(email || '').toLowerCase())
 
 const ok = (data) => ({ data, error: null })
 const fail = (error) => ({ data: null, error })
@@ -123,4 +131,45 @@ export function onParticipants(code, cb) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `room_code=eq.${code}` }, cb)
     .subscribe()
   return () => { try { supabase.removeChannel(ch) } catch {} }
+}
+
+// --- Host accounts (Supabase Auth, email + password) ---------------------
+export async function authSignUp(email, password) {
+  if (!supabase) return { error: 'Supabase not configured' }
+  const { data, error } = await supabase.auth.signUp({ email, password })
+  return { data, error: error?.message || null, needsConfirm: !error && !data?.session }
+}
+export async function authSignIn(email, password) {
+  if (!supabase) return { error: 'Supabase not configured' }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  return { data, error: error?.message || null }
+}
+export async function authSignOut() {
+  if (supabase) await supabase.auth.signOut()
+}
+export function onAuthChange(cb) {
+  if (!supabase) { cb(null); return () => {} }
+  supabase.auth.getUser().then(({ data }) => cb(data?.user ?? null)).catch(() => cb(null))
+  const { data } = supabase.auth.onAuthStateChange((_e, session) => cb(session?.user ?? null))
+  return () => data?.subscription?.unsubscribe?.()
+}
+
+/** All rooms saved to Supabase, newest first — the host dashboard's source. */
+export async function listRooms(limit = 60) {
+  if (!supabase) return []
+  try {
+    const { data } = await supabase.from('rooms').select('*').order('created_at', { ascending: false }).limit(limit)
+    return data ?? []
+  } catch { return [] }
+}
+
+/** Participant counts per room code, for the dashboard. */
+export async function participantCounts(codes) {
+  if (!supabase || !codes?.length) return {}
+  try {
+    const { data } = await supabase.from('participants').select('room_code').in('room_code', codes)
+    const out = {}
+    for (const r of data ?? []) out[r.room_code] = (out[r.room_code] || 0) + 1
+    return out
+  } catch { return {} }
 }
