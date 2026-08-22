@@ -12,7 +12,7 @@ import { SQUADS, formatAmount } from '../lib/format.mjs'
 export function TeamStandings({ squadPurses = [], leadEntity = 0, myEntity = 0, dark = false }) {
   const rows = SQUADS
     .map((s, i) => ({ ...s, purse: BigInt(squadPurses[i] ?? 0) }))
-    .sort((a, b) => (b.purse > a.purse ? 1 : -1))
+    .sort((a, b) => (a.purse === b.purse ? 0 : b.purse > a.purse ? 1 : -1))
     .map((r, i) => ({ ...r, rank: i + 1 }))
 
   const rowBg = dark ? '#1c1436' : '#fff'

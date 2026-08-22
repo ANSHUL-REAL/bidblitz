@@ -1,14 +1,14 @@
 'use client'
 import { use, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { MonadMark } from '../../../components/Logo'
+import { BidBlitzMark } from '../../../components/Logo'
 import { RaceTrack, racersFromState } from '../../../components/RaceTrack'
 import { BidBar } from '../../../components/BidBar'
 import { JoinCard } from '../../../components/JoinCard'
 import { useAuction, useCountdown } from '../../../lib/useAuction'
 import { useSession } from '../../../lib/useSession'
 import { roomIdFromCode, roomCode } from '../../../lib/room.mjs'
-import { formatAmount, entityLabel, squadOf } from '../../../lib/format.mjs'
+import { formatAmount, entityLabel, entityColor } from '../../../lib/format.mjs'
 import { TeamStandings } from '../../../components/TeamStandings'
 import { isSquads } from '../../../lib/modes.mjs'
 
@@ -42,7 +42,7 @@ export default function Room({ params }) {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 20px 0' }}>
         {!joined ? (
-          <JoinCard session={session} roomName={state?.rname} mode={state?.mode} />
+          <JoinCard session={session} roomName={state?.rname} mode={state?.mode} code={code} />
         ) : (
           <LiveRoom state={state} signer={signer} me={me} />
         )}
@@ -72,7 +72,7 @@ function RoomHeader({ state, code, session }) {
         }}
       >
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <MonadMark size={30} />
+          <BidBlitzMark size={30} />
           <span style={{ minWidth: 0 }}>
             <span
               style={{
@@ -132,7 +132,7 @@ function LiveRoom({ state, signer, me }) {
   const live = open && remaining > 0
   const sold = Boolean(state?.sold) && Number(state?.lotId || 0) > 0
   const highest = BigInt(state?.highestBid || 0)
-  const squad = squadOf(me.entityId)
+  const paddleColor = entityColor(me.entityId, state?.mode)
 
   const [flash, setFlash] = useState(null)
   const prevTop = useRef(null)
@@ -143,18 +143,19 @@ function LiveRoom({ state, signer, me }) {
 
   useEffect(() => {
     const top = racers[0]?.key
-    if (top && prevTop.current && top !== prevTop.current) {
+    const prev = prevTop.current
+    prevTop.current = top            // advance every run, or a lead change
+    if (top && prev && top !== prev) {  // re-fires the flash on every poll
       setFlash(top)
       const id = setTimeout(() => setFlash(null), 900)
       return () => clearTimeout(id)
     }
-    prevTop.current = top
   }, [racers])
 
   if (!state?.lotId) {
     return (
       <div style={{ textAlign: 'center', padding: '70px 20px' }}>
-        <MonadMark size={54} style={{ opacity: .35 }} />
+        <BidBlitzMark size={54} style={{ opacity: .35 }} />
         <h1
           style={{
             fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: 34,
@@ -169,11 +170,11 @@ function LiveRoom({ state, signer, me }) {
         <div
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 9, marginTop: 22,
-            background: squad ? `${squad.color}22` : '#efeafd', padding: '12px 18px', borderRadius: 999,
+            background: `${paddleColor}22`, padding: '12px 18px', borderRadius: 999,
           }}
         >
-          <span style={{ width: 10, height: 10, borderRadius: 2, transform: 'rotate(45deg)', background: squad?.color || '#6b2de6' }} />
-          <span style={{ fontWeight: 700 }}>{entityLabel(me.entityId)}</span>
+          <span style={{ width: 10, height: 10, borderRadius: 2, transform: 'rotate(45deg)', background: paddleColor }} />
+          <span style={{ fontWeight: 700 }}>{entityLabel(me.entityId, state?.mode)}</span>
           <span style={{ color: '#6b6d78' }}>·</span>
           <span style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800 }}>
             {formatAmount(me.purse)} MON
@@ -226,7 +227,7 @@ function LiveRoom({ state, signer, me }) {
             {formatAmount(highest)}<span style={{ fontSize: '.3em', marginLeft: 8 }}>MON</span>
           </div>
           <div style={{ fontSize: 16, color: '#2a2a3a', marginTop: 6 }}>
-            {highest === 0n ? 'No bids yet — open it' : `${entityLabel(state.leadEntity)} leading`}
+            {highest === 0n ? 'No bids yet — open it' : `${entityLabel(state.leadEntity, state?.mode)} leading`}
           </div>
         </div>
       </div>
@@ -256,7 +257,7 @@ function Missing({ code }) {
   return (
     <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
       <div>
-        <MonadMark size={52} style={{ opacity: .35 }} />
+        <BidBlitzMark size={52} style={{ opacity: .35 }} />
         <h1
           style={{
             fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: 40,

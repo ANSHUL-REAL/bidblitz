@@ -9,3 +9,6 @@ artifacts/
 .vercel
 .DS_Store
 *.log
+
+# Pasted logo source art (the derived transparent PNG lives in public/brand/)
+src/components/*.jpg

@@ -17,7 +17,6 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 export function useAuction({ roomId, live = false, intervalMs = 1000 } = {}) {
   const [state, setState] = useState(null)
   const [error, setError] = useState(null)
-  const timer = useRef(null)
   const mounted = useRef(true)
   const onWake = useRef(null)
 
@@ -45,11 +44,16 @@ export function useAuction({ roomId, live = false, intervalMs = 1000 } = {}) {
   useEffect(() => {
     if (!roomId) return
     mounted.current = true
+    // Per-run flag + timer, so a fetch in flight from a previous effect run
+    // (StrictMode double-mount, or roomId/live change mid-fetch) can't schedule
+    // a second poll chain that races the current one against /api/state.
+    let active = true
+    let id
 
     const loop = async () => {
       await fetchOnce()
-      if (!mounted.current) return
-      timer.current = setTimeout(loop, intervalMs + Math.random() * 300)
+      if (!active) return
+      id = setTimeout(loop, intervalMs + Math.random() * 300)
     }
     loop()
 
@@ -62,8 +66,9 @@ export function useAuction({ roomId, live = false, intervalMs = 1000 } = {}) {
     window.addEventListener('focus', onVisible)
 
     return () => {
+      active = false
       mounted.current = false
-      clearTimeout(timer.current)
+      clearTimeout(id)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
@@ -94,11 +99,13 @@ export function useCountdown(endsAt, chainNow, fetchedAt) {
     }
     const end = Number(endsAt)
     const anchor = Number(chainNow)
-    const base = fetchedAt ?? Date.now()
+    // Capture the CLIENT clock at anchor time. Both ends of the delta below are
+    // then the same clock, so a phone/projector whose system time is skewed from
+    // the server cancels out. (fetchedAt is the server clock — mixing it in here
+    // would fold the skew straight into the countdown and could pin it to 0.)
+    const base = Date.now()
 
     const tick = () => {
-      // Chain time is the origin; wall-clock supplies only the elapsed delta, so
-      // a projector laptop with a skewed clock still shows the right timer.
       const elapsed = (Date.now() - base) / 1000
       setRemaining(Math.max(0, end - anchor - elapsed))
     }

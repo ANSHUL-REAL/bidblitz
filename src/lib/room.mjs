@@ -15,4 +15,4 @@ export const roomIdFromCode = (code) => {
 export const roomUrl = (id) => `/r/${roomCode(id)}`
 
 export const sanitizeRoomName = (s) =>
-  (s ?? '').replace(/["\\n\r]/g, '').trim().slice(0, 40)
+  (s ?? '').replace(/["\n\r\\]/g, '').trim().slice(0, 40)

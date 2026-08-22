@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useCountdown } from '../lib/useAuction'
-import { formatAmount, formatMon, incrementLabel, QUICK_INCREMENTS, squadOf, entityLabel } from '../lib/format.mjs'
+import { formatAmount, formatMon, incrementLabel, QUICK_INCREMENTS, entityLabel, entityColor } from '../lib/format.mjs'
 
 /**
  * The bidding surface: pinned to the bottom of the viewport for as long as a lot
@@ -19,7 +19,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
   const sold = Boolean(state?.sold) && Number(state?.lotId || 0) > 0
   const highest = BigInt(state?.highestBid || 0)
   const purse = BigInt(me?.purse || 0)
-  const squad = squadOf(me?.entityId)
+  const paddleColor = entityColor(me?.entityId, state?.mode)
 
   const leading = state?.bidder && signer?.address &&
     state.bidder.toLowerCase() === signer.address.toLowerCase()
@@ -28,6 +28,10 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
   const [flash, setFlash] = useState(null)
   const lockedUntil = useRef(0)
   const wasLeading = useRef(false)
+  const refreshTimer = useRef(null)
+
+  // The post-bid refresh is a timer; clear it if the room unmounts first.
+  useEffect(() => () => clearTimeout(refreshTimer.current), [])
 
   // "You've been outbid" only fires on the transition, never on first paint.
   useEffect(() => {
@@ -56,10 +60,10 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
 
     const amount = nextBid(inc)
 
-    // Stale-bid guard. A reverted transaction still costs full gas on Monad, so
-    // submitting a bid we already know is too low burns real MON for nothing —
-    // and telling the user instantly beats waiting for a revert.
-    if (amount <= highest) return setFlash({ kind: 'stale', text: `Someone beat you to ${formatMon(highest)}` })
+    // `amount` is always highest+inc, so it can't be <= the highest we rendered;
+    // the real staleness (someone outbid us since the last ~1s poll) is caught by
+    // the contract's strict `>` check, which reverts, and by the outbid banner.
+    // What we CAN cheaply prevent here is spending past our own purse.
     if (amount > purse) return setFlash({ kind: 'stale', text: 'Not enough purse left' })
 
     setPending(true)
@@ -73,7 +77,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
       setFlash({ kind: 'error', text: String(err?.message || err).slice(0, 80) })
     } finally {
       setPending(false)
-      setTimeout(refreshMe, 800)
+      refreshTimer.current = setTimeout(refreshMe, 800)
     }
   }
 
@@ -147,12 +151,12 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
             </div>
             <div style={{ fontSize: 13, color: leading ? '#12703a' : '#6b6d78', fontWeight: leading ? 700 : 400 }}>
               {sold
-                ? leading ? 'You won it' : `${entityLabel(state.leadEntity)} won`
+                ? leading ? 'You won it' : `${entityLabel(state.leadEntity, state?.mode)} won`
                 : highest === 0n
                   ? 'No bids yet'
                   : leading
                     ? "You're winning"
-                    : `${entityLabel(state.leadEntity)} leading`}
+                    : `${entityLabel(state.leadEntity, state?.mode)} leading`}
             </div>
           </div>
 
@@ -165,8 +169,8 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700 }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, transform: 'rotate(45deg)', background: squad?.color || '#6b2de6' }} />
-                {entityLabel(me?.entityId)}
+                <span style={{ width: 9, height: 9, borderRadius: 2, transform: 'rotate(45deg)', background: paddleColor }} />
+                {entityLabel(me?.entityId, state?.mode)}
               </span>
               <span style={{ fontSize: 13, color: '#6b6d78' }}>
                 purse <strong style={{ color: '#12121c' }}>{formatAmount(purse)}</strong>

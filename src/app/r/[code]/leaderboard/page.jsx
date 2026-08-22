@@ -1,8 +1,9 @@
 'use client'
 import { use, useMemo } from 'react'
 import Link from 'next/link'
-import { MonadMark, MonadLockup } from '../../../../components/Logo'
+import { BidBlitzMark, MonadLockup } from '../../../../components/Logo'
 import { RaceTrack, racersFromState } from '../../../../components/RaceTrack'
+import { useParticipants } from '../../../../lib/useParticipants'
 import { useAuction, useCountdown } from '../../../../lib/useAuction'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
 import { TeamStandings } from '../../../../components/TeamStandings'
@@ -20,6 +21,7 @@ export default function LeaderboardPage({ params }) {
   const { code } = use(params)
   const roomId = roomIdFromCode(code)
   const { state } = useAuction({ roomId, live: true, intervalMs: 500 })
+  const participants = useParticipants(code)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const open = Number(state?.openLotId || 0) !== 0
@@ -27,7 +29,7 @@ export default function LeaderboardPage({ params }) {
   const sold = Boolean(state?.sold) && Number(state?.lotId || 0) > 0
   const highest = BigInt(state?.highestBid || 0)
   const urgent = live && remaining <= 5
-  const racers = useMemo(() => racersFromState(state), [state])
+  const racers = useMemo(() => racersFromState(state, { participants }), [state, participants])
 
   return (
     <main className="surface-dark" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -82,13 +84,13 @@ export default function LeaderboardPage({ params }) {
                 {formatAmount(highest)}<span style={{ fontSize: '.3em', marginLeft: 8 }}>MON</span>
               </div>
               <div style={{ fontSize: 24, color: '#cdc6ee', marginTop: 8 }}>
-                {highest === 0n ? 'No bids yet' : <>{entityLabel(state.leadEntity)} <span style={{ color: '#8d85b4' }}>leading</span></>}
+                {highest === 0n ? 'No bids yet' : <>{entityLabel(state.leadEntity, state?.mode)} <span style={{ color: '#8d85b4' }}>leading</span></>}
                 {live && <> · <strong style={{ color: urgent ? '#ff4d4d' : '#fff' }}>{remaining.toFixed(1)}s</strong></>}
               </div>
             </>
           ) : (
             <div style={{ textAlign: 'center' }}>
-              <MonadMark size={90} style={{ opacity: 0.35 }} />
+              <BidBlitzMark size={90} style={{ opacity: 0.35 }} />
               <h1 className="display" style={{ fontSize: 48, marginTop: 22 }}>Standing by</h1>
               <p style={{ color: '#8d85b4', fontSize: 20 }}>Waiting for the first lot.</p>
             </div>

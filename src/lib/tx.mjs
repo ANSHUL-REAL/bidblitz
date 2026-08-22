@@ -34,12 +34,20 @@ export class Signer {
     this.nonce = null
   }
 
-  /** Seed or repair the local nonce from what the chain actually reports. */
+  /**
+   * Seed or repair the local nonce from what the chain reports. Ratchets
+   * FORWARD only: 'latest' excludes a still-pending tx (e.g. the join), so a
+   * naive resync would rewind beneath it and the next send (the first bid)
+   * would reuse that nonce — Monad then silently drops one of the two. Taking
+   * the max keeps us sequenced behind anything in flight while still jumping
+   * forward to heal a genuine gap.
+   */
   async syncNonce() {
-    this.nonce = await readClient.getTransactionCount({
+    const chain = await readClient.getTransactionCount({
       address: this.address,
       blockTag: 'latest',
     })
+    this.nonce = this.nonce === null ? chain : Math.max(this.nonce, chain)
     return this.nonce
   }
 

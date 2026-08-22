@@ -1,7 +1,7 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { MonadMark } from '../../../../components/Logo'
+import { BidBlitzMark } from '../../../../components/Logo'
 import { JoinCard } from '../../../../components/JoinCard'
 import { useAuction, useCountdown } from '../../../../lib/useAuction'
 import { useSession } from '../../../../lib/useSession'
@@ -43,7 +43,7 @@ export default function Host({ params }) {
     return (
       <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
         <div>
-          <MonadMark size={50} style={{ opacity: .35 }} />
+          <BidBlitzMark size={50} style={{ opacity: .35 }} />
           <h1 style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: 34, letterSpacing: '-.03em', textTransform: 'uppercase', margin: '18px 0 8px' }}>
             Not your room
           </h1>
@@ -107,7 +107,7 @@ function Console({ code, roomId, state, refetch, signer }) {
         }}
       >
         <Link href={`/r/${code}`} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <MonadMark size={26} />
+          <BidBlitzMark size={26} />
           <span>
             <span style={{ display: 'block', fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 17, color: '#12121c' }}>
               {state?.rname || 'Room'}
@@ -173,7 +173,7 @@ function Console({ code, roomId, state, refetch, signer }) {
                       {formatAmount(highest)}<span style={{ fontSize: 15, marginLeft: 5 }}>MON</span>
                     </div>
                     <div style={{ fontSize: 14, color: '#2a2a3a', marginTop: 4 }}>
-                      {highest === 0n ? 'No bids yet' : `${entityLabel(state.leadEntity)} leading`}
+                      {highest === 0n ? 'No bids yet' : `${entityLabel(state.leadEntity, state?.mode)} leading`}
                     </div>
                   </div>
                   <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: 34, color: urgent ? '#ff4d4d' : '#12121c', letterSpacing: '-.03em' }}>
@@ -184,7 +184,7 @@ function Console({ code, roomId, state, refetch, signer }) {
             ) : (
               <div style={{ color: '#6b6d78', fontSize: 16 }}>
                 {Number(state?.lotId || 0) > 0
-                  ? <>Lot #{state.lotId} closed{state?.sold ? ` — ${entityLabel(state.leadEntity)} took it` : ''}. Ready for the next.</>
+                  ? <>Lot #{state.lotId} closed{state?.sold ? ` — ${entityLabel(state.leadEntity, state?.mode)} took it` : ''}. Ready for the next.</>
                   : 'No lot yet. Start one below.'}
               </div>
             )}
@@ -314,9 +314,11 @@ function Console({ code, roomId, state, refetch, signer }) {
           ))}
         </div>
 
-        {/* ---------------- purses ---------------- */}
+        {/* ---------------- purses (fantasy teams only) ---------------- */}
+        {Number(state?.mode) === 1 && (
+        <>
         <h2 style={{ fontSize: 12, letterSpacing: '.16em', color: '#6b6d78', margin: '26px 0 10px', fontWeight: 700 }}>
-          PURSES · {Number(state?.nEntities || 0)} BIDDERS
+          TEAM PURSES
         </h2>
         <div style={{ display: 'grid', gap: 8 }}>
           {SQUADS.map((sq, i) => (
@@ -335,6 +337,8 @@ function Console({ code, roomId, state, refetch, signer }) {
             </div>
           ))}
         </div>
+        </>
+        )}
 
         <button
           className="btn-plain"

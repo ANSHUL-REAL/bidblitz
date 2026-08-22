@@ -1,14 +1,15 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { BidBlitzLogo, MonadLockup, MonadMark, Bolt } from '../../../../components/Logo'
+import { BidBlitzLogo, MonadLockup, BidBlitzMark, Bolt } from '../../../../components/Logo'
 import { useAuction, useCountdown } from '../../../../lib/useAuction'
-import { formatMon, SQUADS, squadOf, entityLabel, shortAddress } from '../../../../lib/format.mjs'
+import { formatMon, SQUADS, squadOf, entityLabel, entityColor, shortAddress } from '../../../../lib/format.mjs'
 import { EXPLORER } from '../../../../lib/chain.mjs'
 import { unlock, dingBid, gavel, fanfareStart, tick } from '../../../../lib/sound.mjs'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
 import { use } from 'react'
 import { RaceTrack, racersFromState } from '../../../../components/RaceTrack'
+import { useParticipants } from '../../../../lib/useParticipants'
 
 export default function Screen({ params }) {
   const { code } = use(params)
@@ -32,7 +33,7 @@ function StartGate({ onStart, roomName }) {
       style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', textAlign: 'center' }}
     >
       <div>
-        <MonadMark size={90} />
+        <BidBlitzMark size={90} />
         <h1 className="display" style={{ fontSize: 84, margin: '26px 0 10px' }}>
           Bid<span style={{ color: 'var(--monad-purple)' }}>Blitz</span>
         </h1>
@@ -61,6 +62,7 @@ function StartGate({ onStart, roomName }) {
 }
 
 function Board({ state, code }) {
+  const participants = useParticipants(code)
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const highest = BigInt(state?.highestBid || 0)
   const open = Number(state?.openLotId || 0) !== 0
@@ -99,7 +101,7 @@ function Board({ state, code }) {
         }}
       >
         <LotStage state={state} highest={highest} remaining={remaining} live={live} sold={sold} />
-        {live ? <RaceLane state={state} /> : <SidePanel state={state} code={code} />}
+        {live ? <RaceLane state={state} participants={participants} /> : <SidePanel state={state} code={code} />}
       </section>
 
       {Number(state?.mode) === 1 && <PurseStrip state={state} />}
@@ -146,7 +148,7 @@ function LotStage({ state, highest, remaining, live, sold }) {
   if (!lotId) {
     return (
       <div style={{ textAlign: 'center' }}>
-        <MonadMark size={120} style={{ opacity: 0.3 }} />
+        <BidBlitzMark size={120} style={{ opacity: 0.3 }} />
         <h2 className="display" style={{ fontSize: 64, marginTop: 28 }}>Scan to join</h2>
         <p style={{ fontSize: 26, color: 'var(--ink-3)' }}>The first lot is coming up</p>
       </div>
@@ -194,7 +196,7 @@ function LotStage({ state, highest, remaining, live, sold }) {
         </div>
 
         <div style={{ fontSize: 27, color: 'var(--ink-2)', marginTop: 10, minHeight: 36 }}>
-          {highest === 0n ? 'No bids yet' : <>{entityLabel(state.leadEntity)} <span style={{ color: 'var(--ink-3)' }}>leading</span></>}
+          {highest === 0n ? 'No bids yet' : <>{entityLabel(state.leadEntity, state?.mode)} <span style={{ color: 'var(--ink-3)' }}>leading</span></>}
         </div>
 
         {live && <BigTimer remaining={remaining} urgent={urgent} />}
@@ -227,19 +229,20 @@ function BigTimer({ remaining, urgent }) {
 }
 
 /** Live bidders racing, on the projector. */
-function RaceLane({ state }) {
+function RaceLane({ state, participants }) {
   const [flash, setFlash] = useState(null)
   const prevTop = useRef(null)
-  const racers = useMemo(() => racersFromState(state), [state])
+  const racers = useMemo(() => racersFromState(state, { participants }), [state, participants])
 
   useEffect(() => {
     const top = racers[0]?.key
-    if (top && prevTop.current && top !== prevTop.current) {
+    const prev = prevTop.current
+    prevTop.current = top            // advance every run, or a lead change
+    if (top && prev && top !== prev) {  // re-fires the flash on every poll
       setFlash(top)
       const id = setTimeout(() => setFlash(null), 900)
       return () => clearTimeout(id)
     }
-    prevTop.current = top
   }, [racers])
 
   return (
@@ -339,8 +342,7 @@ function PurseStrip({ state }) {
  */
 function SoldTakeover({ state, highest }) {
   const canvas = useRef(null)
-  const squad = squadOf(state?.leadEntity)
-  const accent = squad?.color || 'var(--monad-purple)'
+  const accent = entityColor(state?.leadEntity, state?.mode)
   const unsold = highest === 0n || !state?.bidder || /^0x0+$/.test(state.bidder)
 
   useEffect(() => {
@@ -351,7 +353,7 @@ function SoldTakeover({ state, highest }) {
     el.width = window.innerWidth
     el.height = window.innerHeight
 
-    const colors = [squad?.color || '#6e54ff', '#ffae45', '#ffffff', '#85e6ff']
+    const colors = [accent, '#ffae45', '#ffffff', '#85e6ff']
     const bits = Array.from({ length: 160 }, () => ({
       x: Math.random() * el.width,
       y: -20 - Math.random() * el.height * 0.6,
@@ -381,7 +383,7 @@ function SoldTakeover({ state, highest }) {
     }
     draw()
     return () => cancelAnimationFrame(raf)
-  }, [unsold, squad])
+  }, [unsold, accent])
 
   return (
     <div
@@ -404,7 +406,7 @@ function SoldTakeover({ state, highest }) {
               {state.lname}
             </div>
             <div style={{ fontSize: 'clamp(24px,2.6vw,38px)', marginTop: 14, color: '#fff' }}>
-              to <strong>{entityLabel(state.leadEntity)}</strong> for{' '}
+              to <strong>{entityLabel(state.leadEntity, state?.mode)}</strong> for{' '}
               <span className="display" style={{ fontSize: '1.5em', textTransform: 'none' }}>
                 {formatMon(highest)}
               </span>
