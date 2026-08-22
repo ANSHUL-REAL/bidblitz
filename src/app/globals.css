@@ -197,6 +197,56 @@ input, button, select, textarea { font-family: inherit; font-size: 16px; }
   box-shadow: var(--shadow-lg);
 }
 
+/* --- hero layout, from the BidBlitz Hero canvas -------------------------- */
+.hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(470px, 1fr));
+  gap: 56px;
+  align-items: center;
+  position: relative;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  overflow: hidden;
+}
+.step { display: flex; gap: 22px; align-items: flex-start; padding: 34px 36px; border-right: 1px solid var(--line); transition: background .25s ease; }
+.step:last-child { border-right: none; }
+.step:hover { background: var(--purple-050); }
+.step-num {
+  flex: 0 0 auto; width: 66px; height: 66px; border-radius: 14px;
+  background: var(--purple-050); display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--monad-purple);
+}
+
+.nav-links { display: flex; align-items: center; gap: 42px; }
+.nav-links a { font-weight: 700; font-size: 16px; color: var(--ink); text-decoration: none; transition: color .2s ease; }
+.nav-links a:hover { color: var(--monad-purple); }
+
+.hero-pad { padding: 60px 48px 0; }
+.header-pad { padding: 18px 48px; }
+
+@media (max-width: 1000px) {
+  .hero { grid-template-columns: 1fr; gap: 32px; }
+  .steps { grid-template-columns: 1fr; }
+  .step { border-right: none; border-bottom: 1px solid var(--line); padding: 22px 24px; }
+  .step:last-child { border-bottom: none; }
+  .step-num { width: 52px; height: 52px; font-size: 18px; }
+  .nav-links { display: none; }
+  .hero-pad { padding: 24px 20px 0; }
+  .header-pad { padding: 14px 20px; }
+}
+
+/* Diagonal speed streaks behind the hero. */
+.streaks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.streak {
+  position: absolute; right: -240px; height: 1px; width: 1400px;
+  background: linear-gradient(90deg, rgba(110,84,255,0), rgba(110,84,255,.16), rgba(110,84,255,0));
+  animation: bb-streak linear infinite;
+}
+@keyframes bb-streak { 0% { transform: translate3d(0,0,0) rotate(var(--rot, 0deg)); } 100% { transform: translate3d(-220px,0,0) rotate(var(--rot, 0deg)); } }
+
 .sr-only {
   position: absolute; width: 1px; height: 1px;
   padding: 0; margin: -1px; overflow: hidden;

@@ -6,6 +6,7 @@ import { useAuction, useCountdown } from '../../lib/useAuction'
 import { formatCrore, SQUADS, squadOf, entityLabel, shortAddress } from '../../lib/format.mjs'
 import { EXPLORER } from '../../lib/chain.mjs'
 import { unlock, dingBid, gavel, fanfareStart, tick } from '../../lib/sound.mjs'
+import { RaceTrack, racersFromState } from '../../components/RaceTrack'
 
 export default function Screen() {
   const [started, setStarted] = useState(false)
@@ -79,9 +80,17 @@ function Board({ state }) {
     <main className="surface-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <TopBar state={state} live={live} />
 
-      <section style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 40, padding: '28px 44px', alignItems: 'center' }}>
+      <section
+        style={{
+          flex: 1, display: 'grid', gap: 40, padding: '28px 44px', alignItems: 'center',
+          // Race track earns the space while a lot is running; between lots the
+          // QR is what matters, so it takes over.
+          gridTemplateColumns: live ? '1fr 620px' : '1fr 380px',
+          transition: 'grid-template-columns .5s cubic-bezier(.2,.7,.2,1)',
+        }}
+      >
         <LotStage state={state} highest={highest} remaining={remaining} live={live} sold={sold} />
-        <SidePanel state={state} />
+        {live ? <RaceLane state={state} /> : <SidePanel state={state} />}
       </section>
 
       <PurseStrip state={state} />
@@ -204,6 +213,32 @@ function BigTimer({ remaining, urgent }) {
           }}
         />
       </div>
+    </div>
+  )
+}
+
+/** Live bidders racing, on the projector. */
+function RaceLane({ state }) {
+  const [flash, setFlash] = useState(null)
+  const prevTop = useRef(null)
+  const racers = useMemo(() => racersFromState(state), [state])
+
+  useEffect(() => {
+    const top = racers[0]?.key
+    if (top && prevTop.current && top !== prevTop.current) {
+      setFlash(top)
+      const id = setTimeout(() => setFlash(null), 900)
+      return () => clearTimeout(id)
+    }
+    prevTop.current = top
+  }, [racers])
+
+  return (
+    <div>
+      <div style={{ fontSize: 15, letterSpacing: '.22em', color: 'var(--ink-3)', fontWeight: 700, marginBottom: 10 }}>
+        {state?.racers?.length ? 'WHO GETS THERE FIRST' : 'TEAM PURSES'}
+      </div>
+      <RaceTrack racers={racers} dark flashKey={flash} />
     </div>
   )
 }

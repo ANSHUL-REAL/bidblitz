@@ -39,8 +39,13 @@ export async function GET(request) {
       functionName: 'state',
     })
 
+    // Bid history for the race track. Done here rather than per-client for the
+    // same reason as everything else on this route: one call for the whole room.
+    const racers = await recentBidders(s)
+
     const body = {
       ...jsonSafe(s),
+      racers,
       contract: CONTRACT,
       fetchedAt: now,
     }
@@ -52,6 +57,55 @@ export async function GET(request) {
     // blank one, and RPC blips are expected on venue wifi.
     if (cache.body) return json({ ...cache.body, stale: true }, live, true)
     return Response.json({ error: String(err?.shortMessage || err?.message || err) }, { status: 502 })
+  }
+}
+
+/**
+ * Recent distinct bidders on the current lot, best bid first — the data behind
+ * the race track. Read from BidPlaced logs because the contract deliberately
+ * stores only the current leader; keeping a full bid array on-chain would cost
+ * a cold SSTORE per bid, and at 8,100 gas each that is real MON for something
+ * the logs already give us free.
+ */
+async function recentBidders(s) {
+  const lotId = BigInt(s.lotId || 0)
+  if (lotId === 0n) return []
+
+  try {
+    const head = await publicClient.getBlockNumber()
+    // 300ms blocks, so 1200 blocks is ~6 minutes — comfortably longer than any lot.
+    const fromBlock = head > 1200n ? head - 1200n : 0n
+
+    const logs = await publicClient.getLogs({
+      address: CONTRACT,
+      event: BIDBLITZ_ABI.find((x) => x.type === 'event' && x.name === 'BidPlaced'),
+      args: { lotId },
+      fromBlock,
+      toBlock: 'latest',
+    })
+
+    const best = new Map()
+    for (const log of logs) {
+      const { bidder, entityId, amount } = log.args
+      const prev = best.get(bidder)
+      if (!prev || amount > prev.amount) {
+        best.set(bidder, {
+          bidder,
+          entityId: Number(entityId),
+          amount,
+          bids: (prev?.bids ?? 0) + 1,
+        })
+      } else {
+        prev.bids += 1
+      }
+    }
+
+    return [...best.values()]
+      .sort((a, b) => (b.amount > a.amount ? 1 : -1))
+      .slice(0, 5)
+      .map((r) => ({ ...r, amount: r.amount.toString() }))
+  } catch {
+    return [] // never let the race track break the whole state payload
   }
 }
 
