@@ -12,10 +12,13 @@ import { feeParams, GAS } from '../../../lib/chain.mjs'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const FUND_AMOUNT = parseEther(process.env.FUND_AMOUNT || '0.05')
-// Threshold, NOT `> 0`. With `> 0`, someone who spends everything can never be
-// topped up — which is exactly the moment they need it.
-const MIN_BALANCE = parseEther(process.env.MIN_BALANCE || '0.02')
+// Default airdrop. Hosts run many txs (createRoom + each startLot + each
+// sellLot), so this is sized for a host to run a whole event, not just a few
+// bids. A host can also top up mid-session (see the host console).
+const FUND_AMOUNT = parseEther(process.env.FUND_AMOUNT || '0.25')
+// Top-up threshold, NOT `> 0`. Below this, /api/fund tops the wallet up — so a
+// host who spends down mid-event gets refilled. Above it, funding is a no-op.
+const MIN_BALANCE = parseEther(process.env.MIN_BALANCE || '0.06')
 
 // A host can set how much MON to airdrop each joiner (per room). We randomise it
 // 0.5×–1.5× so the distribution varies, and HARD-cap it server-side so a stray

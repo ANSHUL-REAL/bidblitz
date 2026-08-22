@@ -12,6 +12,7 @@ import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '.
 import { itemsForCategories, FANTASY_ITEMS } from '../../../../lib/categories.mjs'
 import { imageForItem } from '../../../../lib/presetArt.mjs'
 import { getRoom, uploadImage } from '../../../../lib/supabase'
+import { requestFunding } from '../../../../lib/tx.mjs'
 
 /**
  * Host console.
@@ -97,6 +98,16 @@ function Console({ code, roomId, state, refetch, signer }) {
     () => (isFantasy ? FANTASY_ITEMS : itemsForCategories(cats || [])),
     [isFantasy, cats],
   )
+
+  // Hosting burns gas on every start/sell, so keep the host wallet topped up.
+  // On mount (and it arms in the background while you set up the first lot),
+  // refill if it's running low — /api/fund only actually sends below its floor.
+  useEffect(() => {
+    if (!signer?.address) return
+    signer.balance().then((bal) => {
+      if (bal < 120000000000000000n) requestFunding(signer.address, false, null).catch(() => {})
+    }).catch(() => {})
+  }, [signer])
 
   async function run(fn, label) {
     if (busy) return
