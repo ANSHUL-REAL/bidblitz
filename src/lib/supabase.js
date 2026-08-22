@@ -184,3 +184,21 @@ export async function updateRoomFunding(code, amountMon) {
     return error ? fail(error) : ok(true)
   } catch (e) { return fail(e) }
 }
+
+/**
+ * Upload a photo for a lot to Supabase Storage and return its public URL (so it
+ * can be stored on-chain as a plain link every phone can load). Needs the 'lots'
+ * bucket — see supabase/003_storage.sql. Returns null on any failure.
+ */
+export async function uploadImage(file) {
+  if (!supabase || !file) return null
+  try {
+    const ext = (file.name?.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const rand = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    const path = `${rand}.${ext}`
+    const { error } = await supabase.storage.from('lots').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false })
+    if (error) return null
+    const { data } = supabase.storage.from('lots').getPublicUrl(path)
+    return data?.publicUrl || null
+  } catch { return null }
+}

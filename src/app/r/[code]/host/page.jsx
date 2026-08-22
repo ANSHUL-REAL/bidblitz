@@ -11,7 +11,7 @@ import { formatAmount, entityLabel, SQUADS } from '../../../../lib/format.mjs'
 import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '../../../../lib/lots.mjs'
 import { itemsForCategories, FANTASY_ITEMS } from '../../../../lib/categories.mjs'
 import { imageForItem } from '../../../../lib/presetArt.mjs'
-import { getRoom } from '../../../../lib/supabase'
+import { getRoom, uploadImage } from '../../../../lib/supabase'
 
 /**
  * Host console.
@@ -69,6 +69,7 @@ function Console({ code, roomId, state, refetch, signer }) {
   const [image, setImage] = useState('')
   const [duration, setDuration] = useState(DEFAULT_DURATION)
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [msg, setMsg] = useState(null)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
@@ -263,12 +264,24 @@ function Console({ code, roomId, state, refetch, signer }) {
             placeholder="Who or what is on the block?" maxLength={60}
           />
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 12, overflowX: 'auto', paddingBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', overflowX: 'auto', paddingBottom: 4 }}>
             <ImageChoice active={image === ''} onClick={() => setImage('')} label="none" />
-            {image && !IMAGE_LIBRARY.includes(image) && <ImageChoice src={image} active onClick={() => {}} />}
-            {IMAGE_LIBRARY.map((src) => (
-              <ImageChoice key={src} src={src} active={image === src} onClick={() => setImage(src)} />
-            ))}
+            {image && <ImageChoice src={image} active onClick={() => {}} />}
+            <label className="btn-plain" title="Upload a photo" style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 12, border: '1.5px dashed #b7b0d4', background: '#faf8ff', display: 'grid', placeItems: 'center', fontSize: 22, color: '#6b2de6', cursor: 'pointer' }}>
+              {uploading ? '…' : '+'}
+              <input
+                type="file" accept="image/*" style={{ display: 'none' }} disabled={uploading}
+                onChange={async (e) => {
+                  const f = e.target.files?.[0]; if (!f) return
+                  setUploading(true)
+                  const url = await uploadImage(f)
+                  setUploading(false)
+                  if (url) setImage(url)
+                  else setMsg({ ok: false, text: 'Upload failed — run supabase/003_storage.sql, or paste an image URL instead.' })
+                }}
+              />
+            </label>
+            <span style={{ fontSize: 12, color: '#9c94bd', flexShrink: 0 }}>{uploading ? 'uploading…' : 'upload a photo'}</span>
           </div>
           {/* Custom meme / NFT: paste any image URL. It is stored on-chain as a
               plain string, so it must be a public link everyone's phone can load
