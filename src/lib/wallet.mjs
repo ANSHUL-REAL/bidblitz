@@ -106,6 +106,7 @@ export class InjectedSigner {
    * signature it will not hand over.
    */
   async send(functionName, args, gas) {
+    if (!CONTRACT) throw new Error('The BidBlitz contract is not deployed yet — this is a one-time setup step by the organizer.')
     const data = encodeFunctionData({ abi: BIDBLITZ_ABI, functionName, args })
     try {
       return await this.provider.request({

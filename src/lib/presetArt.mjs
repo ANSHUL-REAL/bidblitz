@@ -51,6 +51,7 @@ export function webImage(category, name) {
     return id ? `https://api.memegen.link/images/${id}.png` : null
   }
   if (category === 'nfts') return `https://robohash.org/${slug}.png?set=set1&size=400x400`
+  if (category === 'fantasy') return null // use the generated character portrait
   // games / cards / art / irl / fantasy / custom → deterministic stock photo
   return `https://picsum.photos/seed/bidblitz-${slug}/400/400`
 }

@@ -277,26 +277,8 @@ function HostPane({ snap, engine }) {
           </div>
         )}
 
-        <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add anything — a meme, a name, an item…" maxLength={60} onKeyDown={(e) => e.key === 'Enter' && add()} />
-        <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
-          <ImageChip active={image === ''} onClick={() => setImage('')} label="no pic" />
-          {image && !IMAGE_LIBRARY.includes(image) && <ImageChip src={image} active onClick={() => {}} />}
-          {IMAGE_LIBRARY.map((src) => <ImageChip key={src} src={src} active={image === src} onClick={() => setImage(src)} />)}
-          <label className="btn-plain" style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 10, border: '1.5px dashed #b7b0d4', background: '#faf8ff', display: 'grid', placeItems: 'center', fontSize: 20, color: '#6b2de6', cursor: 'pointer' }} title="Upload an image">
-            +
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
-              const f = e.target.files?.[0]; if (f) setImage(URL.createObjectURL(f))
-            }} />
-          </label>
-        </div>
-        <input className="field" style={{ marginTop: 8, fontSize: 14 }} value={image.startsWith('blob:') ? '' : image}
-          onChange={(e) => setImage(e.target.value)} placeholder="…or paste an image URL for your meme / NFT" />
-        <button className="btn-plain" onClick={add} disabled={!name.trim()} style={{ width: '100%', marginTop: 12, padding: 14, borderRadius: 12, background: name.trim() ? '#efeafd' : '#f3f1fa', color: name.trim() ? '#5b28d9' : '#b7b0d4', fontWeight: 700, border: '2px solid #e6e2f5' }}>
-          + Add to queue
-        </button>
-
-        {/* categories */}
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '18px 0 8px' }}>CATEGORIES</div>
+        {/* 1. pick a category */}
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '4px 0 8px' }}>CATEGORIES</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CATEGORIES.map((c) => {
             const on = cats.includes(c.id)
@@ -321,6 +303,7 @@ function HostPane({ snap, engine }) {
           <button className="btn-plain" onClick={addCustomCat} disabled={!customCat.trim()} style={{ padding: '0 16px', borderRadius: 10, fontWeight: 700, border: '1.5px solid #e6e2f5', background: customCat.trim() ? '#efeafd' : '#f3f1fa', color: customCat.trim() ? '#5b28d9' : '#b7b0d4' }}>Add</button>
         </div>
 
+        {/* 2. quick-add items from the chosen categories */}
         {presets.length > 0 && (
           <>
             <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '16px 0 8px' }}>QUICK ADD</div>
@@ -334,6 +317,26 @@ function HostPane({ snap, engine }) {
             </div>
           </>
         )}
+
+        {/* 3. or add your own item */}
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '18px 0 8px' }}>OR ADD YOUR OWN</div>
+        <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add anything — a meme, a name, an item…" maxLength={60} onKeyDown={(e) => e.key === 'Enter' && add()} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
+          <ImageChip active={image === ''} onClick={() => setImage('')} label="no pic" />
+          {image && !IMAGE_LIBRARY.includes(image) && <ImageChip src={image} active onClick={() => {}} />}
+          {IMAGE_LIBRARY.map((src) => <ImageChip key={src} src={src} active={image === src} onClick={() => setImage(src)} />)}
+          <label className="btn-plain" style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 10, border: '1.5px dashed #b7b0d4', background: '#faf8ff', display: 'grid', placeItems: 'center', fontSize: 20, color: '#6b2de6', cursor: 'pointer' }} title="Upload an image">
+            +
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+              const f = e.target.files?.[0]; if (f) setImage(URL.createObjectURL(f))
+            }} />
+          </label>
+        </div>
+        <input className="field" style={{ marginTop: 8, fontSize: 14 }} value={image.startsWith('blob:') ? '' : image}
+          onChange={(e) => setImage(e.target.value)} placeholder="…or paste an image URL for your meme / NFT" />
+        <button className="btn-plain" onClick={add} disabled={!name.trim()} style={{ width: '100%', marginTop: 12, padding: 14, borderRadius: 12, background: name.trim() ? '#efeafd' : '#f3f1fa', color: name.trim() ? '#5b28d9' : '#b7b0d4', fontWeight: 700, border: '2px solid #e6e2f5' }}>
+          + Add to queue
+        </button>
 
         {/* timer + start */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>

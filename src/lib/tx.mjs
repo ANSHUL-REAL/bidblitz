@@ -48,6 +48,7 @@ export class Signer {
   }
 
   async send(functionName, args, gas) {
+    if (!CONTRACT) throw new Error('The BidBlitz contract is not deployed yet — this is a one-time setup step by the organizer.')
     if (this.nonce === null) await this.syncNonce()
 
     const data = encodeFunctionData({ abi: BIDBLITZ_ABI, functionName, args })
