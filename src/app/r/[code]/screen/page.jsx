@@ -102,7 +102,7 @@ function Board({ state, code }) {
         {live ? <RaceLane state={state} /> : <SidePanel state={state} code={code} />}
       </section>
 
-      <PurseStrip state={state} />
+      {Number(state?.mode) === 1 && <PurseStrip state={state} />}
       {sold && <SoldTakeover state={state} highest={highest} />}
     </main>
   )

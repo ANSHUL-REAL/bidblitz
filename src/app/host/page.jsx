@@ -202,6 +202,9 @@ function CreateTab({ session, router }) {
             a purse and draft players together. You add each player live from the
             host console — type a name or use the preset lineup.
           </p>
+          <a href="/demo?mode=fantasy" style={{ display: 'inline-block', marginTop: 12, fontWeight: 700, fontSize: 13, color: '#5b28d9' }}>
+            See the fantasy demo first →
+          </a>
         </div>
       ) : (
         <div style={{ marginTop: 22 }}>

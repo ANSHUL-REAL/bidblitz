@@ -9,6 +9,8 @@ import { useAuction, useCountdown } from '../../../lib/useAuction'
 import { useSession } from '../../../lib/useSession'
 import { roomIdFromCode, roomCode } from '../../../lib/room.mjs'
 import { formatAmount, entityLabel, squadOf } from '../../../lib/format.mjs'
+import { TeamStandings } from '../../../components/TeamStandings'
+import { isSquads } from '../../../lib/modes.mjs'
 
 export default function Room({ params }) {
   const { code } = use(params)
@@ -40,7 +42,7 @@ export default function Room({ params }) {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 20px 0' }}>
         {!joined ? (
-          <JoinCard session={session} roomName={state?.rname} />
+          <JoinCard session={session} roomName={state?.rname} mode={state?.mode} />
         ) : (
           <LiveRoom state={state} signer={signer} me={me} />
         )}
@@ -235,6 +237,15 @@ function LiveRoom({ state, signer, me }) {
             WHO GETS THERE FIRST
           </div>
           <RaceTrack racers={racers} flashKey={flash} scale={0.82} />
+        </div>
+      )}
+
+      {isSquads(state?.mode) && (
+        <div style={{ marginTop: 26 }}>
+          <div style={{ fontSize: 12, letterSpacing: '.2em', color: '#6b6d78', fontWeight: 700, marginBottom: 8 }}>
+            TEAM STANDINGS
+          </div>
+          <TeamStandings squadPurses={state?.squadPurses} leadEntity={state?.leadEntity} myEntity={me?.entityId} />
         </div>
       )}
     </div>

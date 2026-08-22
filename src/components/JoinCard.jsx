@@ -15,7 +15,8 @@ import { squadOf } from '../lib/format.mjs'
  * (Lace cannot appear here: it is a Cardano wallet and does not implement
  * EIP-1193, so it has no way to talk to Monad or any other EVM chain.)
  */
-export function JoinCard({ session, roomName, cta = 'JOIN THE RACE' }) {
+export function JoinCard({ session, roomName, mode, cta = 'JOIN THE RACE' }) {
+  const fantasy = Number(mode) === 1
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -33,7 +34,7 @@ export function JoinCard({ session, roomName, cta = 'JOIN THE RACE' }) {
     } catch { return null }
   }, [name, password])
 
-  const squad = preview ? squadOf(squadForAddress(preview)) : null
+  const squad = fantasy && preview ? squadOf(squadForAddress(preview)) : null
 
   async function submit(e) {
     e.preventDefault()

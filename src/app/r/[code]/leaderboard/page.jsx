@@ -5,6 +5,7 @@ import { MonadMark, MonadLockup } from '../../../../components/Logo'
 import { RaceTrack, racersFromState } from '../../../../components/RaceTrack'
 import { useAuction, useCountdown } from '../../../../lib/useAuction'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
+import { TeamStandings } from '../../../../components/TeamStandings'
 import { formatAmount, entityLabel } from '../../../../lib/format.mjs'
 
 /**
@@ -103,6 +104,13 @@ export default function LeaderboardPage({ params }) {
             <RaceTrack racers={racers} dark scale={0.9} />
           ) : (
             <p style={{ color: '#8d85b4', fontSize: 18 }}>Bidders appear here as soon as a lot opens.</p>
+          )}
+
+          {Number(state?.mode) === 1 && (
+            <div style={{ marginTop: 26 }}>
+              <div style={{ fontSize: 13, letterSpacing: '.2em', color: '#8d85b4', fontWeight: 700, marginBottom: 10 }}>TEAM STANDINGS</div>
+              <TeamStandings squadPurses={state?.squadPurses} leadEntity={state?.leadEntity} dark />
+            </div>
           )}
         </div>
       </section>
