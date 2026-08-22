@@ -4,6 +4,7 @@ import { readContract } from 'viem/actions'
 import { MonadMark, MonadLockup } from '../components/Logo'
 import { RaceTrack, racersFromState } from '../components/RaceTrack'
 import { useDemoRace } from '../lib/demoRace'
+import { BidBar } from '../components/BidBar'
 import { useAuction, useCountdown } from '../lib/useAuction'
 import { deriveAccount, loadIdentity, saveIdentity, clearIdentity, normalizeName } from '../lib/identity.mjs'
 import { Signer, readClient, squadForAddress, requestFunding, waitForArming, CONTRACT } from '../lib/tx.mjs'
@@ -67,7 +68,7 @@ export default function Home() {
         clearIdentity(); setIdentity(null); setSigner(null); setMe({ entityId: 0, purse: 0n, spent: 0n })
       }} />
 
-      <section style={{ position: 'relative', maxWidth: 1440, margin: '0 auto', padding: '60px 0 0' }} className="pad-x">
+      <section style={{ position: 'relative', maxWidth: 1440, margin: '0 auto', paddingTop: 60 }} className="pad-x">
         <Streaks />
 
         <div className="hero-grid">
@@ -90,6 +91,10 @@ export default function Home() {
         onJoined={(ident, s) => { setIdentity(ident); setSigner(s); refreshMe() }}
       />
       <Footer />
+
+      {/* Follows the bidder down the page — a 20s lot does not survive having to
+          scroll back to find the buttons. */}
+      <BidBar state={state} signer={signer} me={me} refreshMe={refreshMe} />
     </div>
   )
 }
@@ -99,13 +104,21 @@ export default function Home() {
 function Header({ joined, identity, onLeave }) {
   return (
     <header
-      className="pad-x"
       style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32,
-        paddingTop: 18, paddingBottom: 18, background: '#ffffff',
-        boxShadow: '0 1px 0 rgba(18,18,28,.06)', position: 'sticky', top: 0, zIndex: 30,
+        background: '#ffffff', boxShadow: '0 1px 0 rgba(18,18,28,.06)',
+        position: 'sticky', top: 0, zIndex: 30,
       }}
     >
+      {/* Same 1440 container as every section, so the logo sits on the same
+          left edge as the headline instead of hugging the window. */}
+      <div
+        className="pad-x"
+        style={{
+          maxWidth: 1440, margin: '0 auto',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32,
+          paddingTop: 18, paddingBottom: 18,
+        }}
+      >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <MonadMark size={42} />
         <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 30, letterSpacing: '-.02em' }}>
@@ -149,6 +162,7 @@ function Header({ joined, identity, onLeave }) {
           </a>
         )}
       </nav>
+      </div>
     </header>
   )
 }
@@ -394,7 +408,7 @@ function About({ state }) {
 
   return (
     <section id="about" style={{ background: '#fff', borderTop: '1px solid #eeecf7' }}>
-      <div className="pad-x" style={{ maxWidth: 1440, margin: '0 auto', padding: '76px 0' }}>
+      <div className="pad-x" style={{ maxWidth: 1440, margin: '0 auto', paddingTop: 76, paddingBottom: 76 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: '#ebe6fb', color: '#5b28d9', padding: '10px 18px', borderRadius: 999, fontWeight: 700, fontSize: 14, letterSpacing: '.12em' }}>
           <span style={{ width: 9, height: 9, background: '#6b2de6', borderRadius: 2, transform: 'rotate(45deg)' }} />
           <span>ABOUT</span>
@@ -463,7 +477,7 @@ function Faq() {
 
   return (
     <section id="faq" style={{ background: 'linear-gradient(180deg,#eceaf6 0%,#f4f2fb 100%)' }}>
-      <div className="pad-x" style={{ maxWidth: 1000, margin: '0 auto', padding: '76px 0' }}>
+      <div className="pad-x" style={{ maxWidth: 1000, margin: '0 auto', paddingTop: 76, paddingBottom: 76 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: '#ebe6fb', color: '#5b28d9', padding: '10px 18px', borderRadius: 999, fontWeight: 700, fontSize: 14, letterSpacing: '.12em' }}>
           <span style={{ width: 9, height: 9, background: '#6b2de6', borderRadius: 2, transform: 'rotate(45deg)' }} />
           <span>FAQ</span>
@@ -536,7 +550,7 @@ function Faq() {
 function JoinSection({ state, signer, identity, me, refreshMe, onJoined }) {
   return (
     <section id="join" style={{ background: '#fff', borderTop: '1px solid #eeecf7' }}>
-      <div className="pad-x" style={{ maxWidth: 1000, margin: '0 auto', padding: '76px 0' }}>
+      <div className="pad-x" style={{ maxWidth: 1000, margin: '0 auto', paddingTop: 76, paddingBottom: 76 }}>
         <div style={{ textAlign: 'center' }}>
           <h2
             style={{
@@ -801,7 +815,7 @@ function Footer() {
       <div
         className="pad-x"
         style={{
-          maxWidth: 1440, margin: '0 auto', padding: '44px 0',
+          maxWidth: 1440, margin: '0 auto', paddingTop: 44, paddingBottom: 44,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 24, flexWrap: 'wrap',
         }}

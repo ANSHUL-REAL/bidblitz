@@ -182,6 +182,32 @@ input, button, select, textarea { font-family: inherit; font-size: 16px; }
   animation: om-shimmer 3.6s ease-in-out infinite;
 }
 
+/* --- sticky bid bar ------------------------------------------------------- */
+.bidbar-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 14px 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(320px, 1fr);
+  align-items: center;
+  gap: 28px;
+}
+
+.bid-key { transition: transform .12s ease, box-shadow .12s ease, background .2s ease; }
+.bid-key:active:not(:disabled) { transform: scale(.94); }
+
+@media (max-width: 900px) {
+  .bidbar-inner {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'lot bid' 'keys keys';
+    gap: 10px 14px;
+    padding: 10px 16px 12px;
+  }
+  .bidbar-inner > *:nth-child(1) { grid-area: lot; }
+  .bidbar-inner > *:nth-child(2) { grid-area: bid; text-align: right !important; }
+  .bidbar-inner > *:nth-child(3) { grid-area: keys; }
+}
+
 /* /screen and /admin still refer to these by their old names */
 @keyframes bb-bolt { 0%,100% { opacity: 1; } 45% { opacity: .35; } 55% { opacity: 1; } }
 @keyframes bb-slam {
