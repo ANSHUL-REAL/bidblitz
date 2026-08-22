@@ -80,8 +80,10 @@ async function recentBidders(roomId, s) {
 
   try {
     const head = await publicClient.getBlockNumber()
-    // 300ms blocks, so 1200 blocks is ~6 minutes — longer than any lot.
-    const fromBlock = head > 1200n ? head - 1200n : 0n
+    // The public RPC rejects eth_getLogs ranges over ~96 blocks, so stay well
+    // under it: 90 blocks ≈ 27s at 300ms — enough to show the current lot's
+    // bidders racing. (A private MONAD_RPC_URL lifts this limit for more history.)
+    const fromBlock = head > 90n ? head - 90n : 0n
 
     const logs = await publicClient.getLogs({
       address: CONTRACT,

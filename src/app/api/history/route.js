@@ -4,53 +4,55 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
- * Live transaction history for a room, read straight from the chain — so it is
- * complete (every bid from every device, not just this one) and independently
- * verifiable: every row carries the real tx hash. This is the "show it live as
- * proof" feed. Money events (bids, sales, refunds, host withdrawals) come with
- * an amount; joins/lot-starts give the timeline context.
+ * Live transaction history for a room, read straight from the chain — complete
+ * (every device's bids, not just this one) and verifiable (each row has the real
+ * tx hash).
+ *
+ * The public Monad RPC caps eth_getLogs at ~96 blocks, so we can't ask for a
+ * wide window in one call. Instead we sweep the recent past in small chunks in
+ * parallel, pulling ALL event types per chunk (one call, no per-type fan-out)
+ * and filtering by roomId in JS. A private MONAD_RPC_URL would lift the cap and
+ * let this be a single wide query. Withdrawn isn't room-indexed, so it's kept
+ * regardless (it's the proof MON reached a wallet).
  */
-const evt = (name) => BIDBLITZ_ABI.find((x) => x.type === 'event' && x.name === name)
-
-// roomId-indexed events we can filter server-side.
-const ROOM_EVENTS = ['BidPlaced', 'LotSold', 'LotUnsold', 'Refunded', 'LotStarted', 'Joined']
+const WANT = ['BidPlaced', 'LotSold', 'LotUnsold', 'Refunded', 'LotStarted', 'Joined', 'Withdrawn']
+const EVENT_ABIS = BIDBLITZ_ABI.filter((x) => x.type === 'event' && WANT.includes(x.name))
+const CHUNK = 85n   // safely under the ~96-block getLogs cap
+const CHUNKS = 8    // ~680 blocks ≈ 3.4 min of history
 
 export async function GET(request) {
   if (!CONTRACT) {
     return Response.json({ error: 'NEXT_PUBLIC_CONTRACT not set — deploy first' }, { status: 503 })
   }
-
   const roomId = Number(new URL(request.url).searchParams.get('room') || 0)
   if (!roomId) return Response.json({ error: 'room required' }, { status: 400 })
 
   try {
     const head = await publicClient.getBlockNumber()
-    // ~40k blocks ≈ 3+ hours at 300ms — covers a whole event session.
-    const fromBlock = head > 40000n ? head - 40000n : 0n
+    const ranges = []
+    for (let i = 0; i < CHUNKS; i++) {
+      const to = head - BigInt(i) * (CHUNK + 1n)
+      if (to <= 0n) break
+      const from = to > CHUNK ? to - CHUNK : 0n
+      ranges.push([from, to])
+      if (from === 0n) break
+    }
 
-    const perType = await Promise.all(
-      ROOM_EVENTS.map((name) =>
-        publicClient
-          .getLogs({ address: CONTRACT, event: evt(name), args: { roomId }, fromBlock, toBlock: 'latest' })
-          .then((logs) => logs.map((l) => ({ kind: name, log: l })))
-          .catch(() => []),
+    const chunks = await Promise.all(
+      ranges.map(([from, to]) =>
+        publicClient.getLogs({ address: CONTRACT, events: EVENT_ABIS, fromBlock: from, toBlock: to }).catch(() => []),
       ),
     )
 
-    // Withdrawn isn't room-indexed (it's per-wallet), so pull all in-window and
-    // include them — they are the proof MON actually reached a wallet.
-    const withdrawn = await publicClient
-      .getLogs({ address: CONTRACT, event: evt('Withdrawn'), fromBlock, toBlock: 'latest' })
-      .then((logs) => logs.map((l) => ({ kind: 'Withdrawn', log: l })))
-      .catch(() => [])
-
-    const rows = [...perType.flat(), ...withdrawn]
-      .map(({ kind, log }) => ({
-        kind,
-        txHash: log.transactionHash,
-        block: Number(log.blockNumber),
-        logIndex: Number(log.logIndex),
-        args: jsonSafe(log.args),
+    const rid = BigInt(roomId)
+    const rows = chunks.flat()
+      .filter((l) => l.eventName === 'Withdrawn' || (l.args?.roomId != null && BigInt(l.args.roomId) === rid))
+      .map((l) => ({
+        kind: l.eventName,
+        txHash: l.transactionHash,
+        block: Number(l.blockNumber),
+        logIndex: Number(l.logIndex),
+        args: jsonSafe(l.args),
       }))
       .sort((a, b) => (b.block - a.block) || (b.logIndex - a.logIndex))
       .slice(0, 80)
