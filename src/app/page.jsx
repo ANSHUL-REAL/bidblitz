@@ -233,27 +233,36 @@ function HostOrJoin() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 30 }}>
+        {/* Two distinct kinds of room — Fantasy League is its own thing, not a
+            category buried in an auction. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginTop: 30, maxWidth: 760, marginLeft: 'auto', marginRight: 'auto' }}>
           <Link
-            href="/host"
-            className="cta-lg"
+            href="/host?kind=auction"
             style={{
-              position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', gap: 14,
-              background: '#6b2de6', color: '#fff', padding: '20px 32px', borderRadius: 14,
-              fontWeight: 700, fontSize: 18, letterSpacing: '.05em', boxShadow: '0 18px 40px rgba(107,45,230,.3)',
+              textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#6b2de6', color: '#fff',
+              boxShadow: '0 18px 40px rgba(107,45,230,.3)', display: 'block',
             }}
           >
-            Host an auction <span style={{ fontSize: 20 }}>&#8594;</span>
+            <div style={{ fontSize: 30 }}>😂</div>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8 }}>Host an Auction</div>
+            <div style={{ fontSize: 14, opacity: .85, marginTop: 4, lineHeight: 1.4 }}>Memes, NFTs, games, art — solo bidding on anything.</div>
           </Link>
+
           <Link
-            href="/host"
+            href="/host?kind=fantasy"
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 28px', borderRadius: 14,
-              border: '2px solid #e6e2f5', background: '#fff', color: '#5b28d9', fontWeight: 700, fontSize: 18,
+              textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#fff', color: '#12121c',
+              border: '2px solid #e6e2f5', display: 'block',
             }}
           >
-            Join with a code
+            <div style={{ fontSize: 30 }}>🏏</div>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8, color: '#5b28d9' }}>Fantasy League</div>
+            <div style={{ fontSize: 14, color: '#6b6d78', marginTop: 4, lineHeight: 1.4 }}>A four-team draft — squads share a purse. Its own mode.</div>
           </Link>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <Link href="/host" style={{ fontWeight: 700, color: '#5b28d9' }}>or join a room with a code →</Link>
         </div>
 
         <Lobby />

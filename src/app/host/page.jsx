@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { MonadMark } from '../../components/Logo'
 import { JoinCard } from '../../components/JoinCard'
 import { CategoryPicker } from '../../components/CategoryPicker'
@@ -26,6 +26,14 @@ async function waitForMyRoom(address, title, tries = 25) {
 }
 
 export default function HostPage() {
+  return (
+    <Suspense fallback={null}>
+      <HostInner />
+    </Suspense>
+  )
+}
+
+function HostInner() {
   const router = useRouter()
   const session = useSession(null)
   const [tab, setTab] = useState('host')
@@ -113,7 +121,8 @@ function JoinTab({ onGo }) {
 
 function CreateTab({ session, router }) {
   const { signer } = session
-  const [kind, setKind] = useState('auction') // 'auction' (solo, categories) | 'fantasy' (team draft)
+  const params = useSearchParams()
+  const [kind, setKind] = useState(params.get('kind') === 'fantasy' ? 'fantasy' : 'auction')
   const [title, setTitle] = useState('')
   const [cats, setCats] = useState(['memes'])
   const [creating, setCreating] = useState(false)

@@ -9,7 +9,7 @@ import { DemoEngine } from '../../lib/demoEngine'
 import { formatAmount, MON } from '../../lib/format.mjs'
 import { IMAGE_LIBRARY } from '../../lib/lots.mjs'
 import { CATEGORIES, itemsForCategories, isCustomCat, makeCustomCat, catLabel } from '../../lib/categories.mjs'
-import { artFor, imageForItem } from '../../lib/presetArt.mjs'
+import { artFor, imageForItem, LotImage } from '../../lib/presetArt.mjs'
 
 /**
  * Fully client-side playground. Runs the real product UX — host manager, live
@@ -183,7 +183,7 @@ function HostPane({ snap, engine }) {
           {live ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                {open.image && <img src={open.image} alt="" style={{ width: 54, height: 54, borderRadius: 10, objectFit: 'cover' }} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+                {open.image && <LotImage src={open.image} name={open.name} style={{ width: 54, height: 54, borderRadius: 10, objectFit: 'cover' }} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 700 }}>LIVE NOW</div>
                   <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 22, lineHeight: 1.1 }}>{open.name}</div>
@@ -291,7 +291,7 @@ function HostPane({ snap, engine }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {presets.map((lot) => (
                 <button key={lot.name} className="btn-plain" onClick={() => engine.queueItem(lot.name, imageForItem(lot, lot.category))} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, background: '#faf8ff', border: '1px solid #eeecf7', fontSize: 13, fontWeight: 600 }}>
-                  <img src={imageForItem(lot, lot.category)} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'cover' }} />
+                  <LotImage name={lot.name} category={lot.category} style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'cover' }} />
                   {lot.name}
                 </button>
               ))}
@@ -355,7 +355,7 @@ function ScreenPane({ snap }) {
       {open ? (
         <>
           <div style={{ textAlign: 'center' }}>
-            {open.image && <img src={open.image} alt="" style={{ width: 120, height: 120, borderRadius: 16, objectFit: 'cover', boxShadow: '0 20px 50px rgba(0,0,0,.5)' }} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+            {open.image && <LotImage src={open.image} name={open.name} style={{ width: 120, height: 120, borderRadius: 16, objectFit: 'cover', boxShadow: '0 20px 50px rgba(0,0,0,.5)' }} />}
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 'clamp(28px,5vw,46px)', textTransform: 'uppercase', letterSpacing: '-.03em', margin: '10px 0 0' }}>{open.name}</div>
             <div style={{ fontSize: 12, letterSpacing: '.2em', color: '#8d85b4', fontWeight: 700, marginTop: 10 }}>{open.status === 'sold' ? 'SOLD FOR' : 'CURRENT BID'}</div>
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 'clamp(48px,9vw,80px)', lineHeight: 1, color: urgent ? '#ff4d4d' : '#6b2de6' }}>
@@ -422,7 +422,7 @@ function BidderPane({ snap, engine }) {
       <div style={{ background: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', minHeight: 200 }}>
         {open ? (
           <>
-            {open.image && <img src={open.image} alt="" style={{ width: 96, height: 96, borderRadius: 14, objectFit: 'cover' }} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+            {open.image && <LotImage src={open.image} name={open.name} style={{ width: 96, height: 96, borderRadius: 14, objectFit: 'cover' }} />}
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 24, textTransform: 'uppercase', margin: '8px 0 0' }}>{open.name}</div>
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 46, color: leading ? '#12703a' : '#6b2de6', lineHeight: 1.1 }}>
               {formatAmount(highest)}<span style={{ fontSize: 14, marginLeft: 4 }}>MON</span>
