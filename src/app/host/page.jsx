@@ -123,6 +123,7 @@ function CreateTab({ session, router }) {
   const [kind, setKind] = useState(params.get('kind') === 'fantasy' ? 'fantasy' : 'auction')
   const [title, setTitle] = useState('')
   const [cats, setCats] = useState(['memes'])
+  const [escrow, setEscrow] = useState(false)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const isFantasy = kind === 'fantasy'
@@ -141,7 +142,7 @@ function CreateTab({ session, router }) {
     setCreating(true)
     try {
       await signer.syncNonce?.()
-      await signer.createRoom(clean, mode)
+      await signer.createRoom(clean, mode, isFantasy ? false : escrow)
       const mine = await waitForMyRoom(signer.address, clean)
       if (mine) {
         const chosen = isFantasy ? ['fantasy'] : cats
@@ -219,6 +220,37 @@ function CreateTab({ session, router }) {
       ) : (
         <div style={{ marginTop: 22 }}>
           <CategoryPicker value={cats} onChange={setCats} />
+
+          {/* Play-money vs real payout. Escrow only applies to solo auctions. */}
+          <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
+            {[
+              [false, 'Play money', 'Bids are a game score. Winners get the item + a badge. Free to run — the pool only covers gas.'],
+              [true, 'Real payout (real MON)', 'Bids are real MON, escrowed on-chain. On SOLD the winning bid goes to YOUR wallet; outbid bidders get refunded. You collect + show the transaction as proof.'],
+            ].map(([val, label, blurb]) => (
+              <button
+                type="button"
+                key={String(val)}
+                className="btn-plain"
+                onClick={() => setEscrow(val)}
+                style={{
+                  textAlign: 'left', padding: 14, borderRadius: 12,
+                  border: `2px solid ${escrow === val ? '#6b2de6' : '#e6e2f5'}`,
+                  background: escrow === val ? '#efeafd' : '#fff',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    width: 16, height: 16, borderRadius: 999, flexShrink: 0,
+                    border: `5px solid ${escrow === val ? '#6b2de6' : '#d7cff0'}`,
+                    background: '#fff',
+                  }} />
+                  <span style={{ fontWeight: 800, fontSize: 15, color: escrow === val ? '#5b28d9' : '#12121c' }}>{label}</span>
+                  {val && <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#5b28d9', background: '#e5dcfb', padding: '3px 8px', borderRadius: 999 }}>ON-CHAIN $</span>}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#6b6d78', marginTop: 5, lineHeight: 1.4 }}>{blurb}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

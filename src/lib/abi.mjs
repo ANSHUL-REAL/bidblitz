@@ -75,12 +75,27 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [],
+    "name": "NothingToWithdraw",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "Soulbound",
     "type": "error"
   },
   {
     "inputs": [],
+    "name": "WithdrawFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "WrongLot",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WrongValue",
     "type": "error"
   },
   {
@@ -273,6 +288,37 @@ export const BIDBLITZ_ABI = [
       },
       {
         "indexed": true,
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Refunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "host",
         "type": "address"
@@ -310,6 +356,25 @@ export const BIDBLITZ_ABI = [
       }
     ],
     "name": "Transfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "who",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Withdrawn",
     "type": "event"
   },
   {
@@ -488,6 +553,11 @@ export const BIDBLITZ_ABI = [
         "internalType": "uint8",
         "name": "mode",
         "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "escrow",
+        "type": "bool"
       }
     ],
     "name": "createRoom",
@@ -552,6 +622,24 @@ export const BIDBLITZ_ABI = [
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      }
+    ],
+    "name": "finalize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -737,6 +825,25 @@ export const BIDBLITZ_ABI = [
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "pendingWithdrawals",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint32",
         "name": "roomId",
         "type": "uint32"
@@ -754,7 +861,7 @@ export const BIDBLITZ_ABI = [
     ],
     "name": "placeBid",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -837,6 +944,11 @@ export const BIDBLITZ_ABI = [
             "internalType": "uint8",
             "name": "mode",
             "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "escrow",
+            "type": "bool"
           },
           {
             "internalType": "uint40",
@@ -927,6 +1039,11 @@ export const BIDBLITZ_ABI = [
       {
         "internalType": "bool",
         "name": "exists",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "escrow",
         "type": "bool"
       }
     ],
@@ -1124,6 +1241,11 @@ export const BIDBLITZ_ABI = [
             "type": "uint8"
           },
           {
+            "internalType": "bool",
+            "name": "escrow",
+            "type": "bool"
+          },
+          {
             "internalType": "uint128[]",
             "name": "squadPurses",
             "type": "uint128[]"
@@ -1209,6 +1331,13 @@ export const BIDBLITZ_ABI = [
     "name": "transferFrom",
     "outputs": [],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]

@@ -5,6 +5,7 @@ import { BidBlitzMark } from '../../../../components/Logo'
 import { JoinCard } from '../../../../components/JoinCard'
 import { useAuction, useCountdown } from '../../../../lib/useAuction'
 import { useSession } from '../../../../lib/useSession'
+import { WithdrawPanel } from '../../../../components/WithdrawPanel'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
 import { formatAmount, entityLabel, SQUADS } from '../../../../lib/format.mjs'
 import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '../../../../lib/lots.mjs'
@@ -125,6 +126,9 @@ function Console({ code, roomId, state, refetch, signer }) {
       </header>
 
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '18px 16px 0' }}>
+        {/* Real-MON proceeds to collect (escrow rooms only; hidden otherwise). */}
+        <WithdrawPanel signer={signer} label="Auction proceeds" claimLabel="Collect to wallet" accent="#12703a" />
+
         {/* ---------------- live status ---------------- */}
         <section
           style={{

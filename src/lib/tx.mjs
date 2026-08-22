@@ -55,7 +55,7 @@ export class Signer {
     return readClient.getBalance({ address: this.address })
   }
 
-  async send(functionName, args, gas) {
+  async send(functionName, args, gas, value = 0n) {
     if (!CONTRACT) throw new Error('The BidBlitz contract is not deployed yet — this is a one-time setup step by the organizer.')
     if (this.nonce === null) await this.syncNonce()
 
@@ -71,7 +71,7 @@ export class Signer {
       nonce,
       chainId: monad.id,
       type: 'eip1559',
-      value: 0n,
+      value: BigInt(value || 0n),
     })
 
     // Optimistic: advance immediately so rapid taps don't collide. A failed send
@@ -94,12 +94,16 @@ export class Signer {
   }
 
   // --- room-scoped calls -----------------------------------------------------
-  createRoom(name, mode = 0) { return this.send('createRoom', [name, Number(mode)], GAS.createRoom) }
+  createRoom(name, mode = 0, escrow = false) {
+    return this.send('createRoom', [name, Number(mode), Boolean(escrow)], GAS.createRoom)
+  }
   joinSquad(roomId, squadId) { return this.send('joinSquad', [Number(roomId), squadId], GAS.joinSquad) }
   joinSolo(roomId) { return this.send('joinSolo', [Number(roomId)], GAS.joinSolo) }
-  placeBid(roomId, lotId, amount) {
-    return this.send('placeBid', [Number(roomId), Number(lotId), BigInt(amount)], GAS.placeBid)
+  // In an escrow (real-MON) room the bid amount must be sent as msg.value.
+  placeBid(roomId, lotId, amount, value = 0n) {
+    return this.send('placeBid', [Number(roomId), Number(lotId), BigInt(amount)], GAS.placeBid, BigInt(value || 0n))
   }
+  withdraw() { return this.send('withdraw', [], GAS.withdraw) }
 
   // Host-only. The host wallet is the credential — no shared secret, and no
   // server-side organizer key anywhere in the system.
@@ -108,6 +112,7 @@ export class Signer {
   }
   sellLot(roomId, lotId) { return this.send('sellLot', [Number(roomId), Number(lotId)], GAS.sellLot) }
   closeLot(roomId) { return this.send('closeLot', [Number(roomId)], GAS.closeLot) }
+  finalize(roomId, lotId) { return this.send('finalize', [Number(roomId), Number(lotId)], GAS.finalize) }
 }
 
 /**
@@ -118,6 +123,16 @@ export class Signer {
  * is a better moment anyway: "your wallet drafted you to Bangalore Bytes."
  */
 export const squadForAddress = (address) => (parseInt(address.slice(-1), 16) % 4) + 1
+
+/** Real-MON escrow: how much this address can withdraw (refunds + host proceeds). */
+export async function withdrawableOf(address) {
+  if (!CONTRACT || !address) return 0n
+  try {
+    return await readClient.readContract({
+      address: CONTRACT, abi: BIDBLITZ_ABI, functionName: 'pendingWithdrawals', args: [address],
+    })
+  } catch { return 0n }
+}
 
 /**
  * Monad's reserve-balance rule computes an account's inflight gas budget from

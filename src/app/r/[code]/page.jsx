@@ -5,6 +5,7 @@ import { BidBlitzMark } from '../../../components/Logo'
 import { RaceTrack, racersFromState } from '../../../components/RaceTrack'
 import { BidBar } from '../../../components/BidBar'
 import { JoinCard } from '../../../components/JoinCard'
+import { WithdrawPanel } from '../../../components/WithdrawPanel'
 import { useAuction, useCountdown } from '../../../lib/useAuction'
 import { useSession } from '../../../lib/useSession'
 import { roomIdFromCode, roomCode } from '../../../lib/room.mjs'
@@ -44,7 +45,10 @@ export default function Room({ params }) {
         {!joined ? (
           <JoinCard session={session} roomName={state?.rname} mode={state?.mode} code={code} />
         ) : (
-          <LiveRoom state={state} signer={signer} me={me} />
+          <>
+            <WithdrawPanel signer={signer} label="Refund available" claimLabel="Claim refund" accent="#6b2de6" />
+            <LiveRoom state={state} signer={signer} me={me} />
+          </>
         )}
       </div>
 

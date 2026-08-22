@@ -9,6 +9,8 @@ export const MON = 10n ** 18n
 
 export const MIN_INCREMENT = MON / 2n // 0.5 MON
 export const QUICK_INCREMENTS = [5n, 10n, 20n, 50n].map((n) => (n * MON) / 10n) // .5, 1, 2, 5
+// Real-MON (escrow) rooms: bids are the bidder's own MON, so steps are small.
+export const ESCROW_INCREMENTS = [1n, 2n, 5n, 10n].map((n) => (n * MON) / 10n) // .1, .2, .5, 1
 
 export const toMon = (wei) => Number(BigInt(wei ?? 0n)) / 1e18
 

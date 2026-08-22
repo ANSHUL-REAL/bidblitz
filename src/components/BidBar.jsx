@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useCountdown } from '../lib/useAuction'
-import { formatAmount, formatMon, incrementLabel, QUICK_INCREMENTS, entityLabel, entityColor } from '../lib/format.mjs'
+import { formatAmount, formatMon, incrementLabel, QUICK_INCREMENTS, ESCROW_INCREMENTS, entityLabel, entityColor } from '../lib/format.mjs'
+import { txUrl } from '../lib/chain.mjs'
 
 /**
  * The bidding surface: pinned to the bottom of the viewport for as long as a lot
@@ -20,6 +21,13 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
   const highest = BigInt(state?.highestBid || 0)
   const purse = BigInt(me?.purse || 0)
   const paddleColor = entityColor(me?.entityId, state?.mode)
+
+  // Real-MON (escrow) rooms: bids are the bidder's OWN MON, sent as value and
+  // capped by wallet balance; play-money rooms bid against the on-chain purse.
+  const escrow = Boolean(state?.escrow)
+  const [walletBal, setWalletBal] = useState(0n)
+  const spendable = escrow ? walletBal : purse
+  const increments = escrow ? ESCROW_INCREMENTS : QUICK_INCREMENTS
 
   const leading = state?.bidder && signer?.address &&
     state.bidder.toLowerCase() === signer.address.toLowerCase()
@@ -48,6 +56,16 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
     return () => clearTimeout(id)
   }, [flash])
 
+  // Keep the bidder's real balance fresh in escrow rooms.
+  useEffect(() => {
+    if (!escrow || !signer?.balance) return
+    let alive = true
+    const load = () => signer.balance().then((b) => { if (alive) setWalletBal(BigInt(b || 0n)) }).catch(() => {})
+    load()
+    const id = setInterval(load, 2500)
+    return () => { alive = false; clearInterval(id) }
+  }, [escrow, signer])
+
   if (!signer || (!live && !sold)) return null
 
   const nextBid = (inc) => highest + inc
@@ -63,15 +81,19 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
     // `amount` is always highest+inc, so it can't be <= the highest we rendered;
     // the real staleness (someone outbid us since the last ~1s poll) is caught by
     // the contract's strict `>` check, which reverts, and by the outbid banner.
-    // What we CAN cheaply prevent here is spending past our own purse.
-    if (amount > purse) return setFlash({ kind: 'stale', text: 'Not enough purse left' })
+    // What we CAN cheaply prevent is spending past what we can afford — the
+    // on-chain purse in play-money rooms, the real wallet balance in escrow ones.
+    if (amount > spendable) {
+      return setFlash({ kind: 'stale', text: escrow ? 'Not enough MON in your wallet' : 'Not enough purse left' })
+    }
 
     setPending(true)
     setFlash(null)
     try {
       navigator.vibrate?.(30)
-      await signer.placeBid(roomId, state.lotId, amount)
-      setFlash({ kind: 'sent', text: `${formatMon(amount)} — sent` })
+      // Escrow rooms escrow the bid as msg.value; play-money rooms send nothing.
+      const hash = await signer.placeBid(roomId, state.lotId, amount, escrow ? amount : 0n)
+      setFlash({ kind: 'sent', text: `${formatMon(amount)} — sent`, hash })
     } catch (err) {
       await signer.syncNonce().catch(() => {})
       setFlash({ kind: 'error', text: String(err?.message || err).slice(0, 80) })
@@ -173,14 +195,14 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
                 {entityLabel(me?.entityId, state?.mode)}
               </span>
               <span style={{ fontSize: 13, color: '#6b6d78' }}>
-                purse <strong style={{ color: '#12121c' }}>{formatAmount(purse)}</strong>
+                {escrow ? 'wallet' : 'purse'} <strong style={{ color: '#12121c' }}>{formatAmount(spendable)}</strong>
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7 }}>
-              {QUICK_INCREMENTS.map((inc) => {
+              {increments.map((inc) => {
                 const amount = nextBid(inc)
-                const afford = amount <= purse
+                const afford = amount <= spendable
                 const disabled = !live || pending || !afford
                 return (
                   <button
@@ -224,6 +246,14 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
             }}
           >
             {flash.text}
+            {flash.hash && (
+              <>
+                {' · '}
+                <a href={txUrl(flash.hash)} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                  view tx ↗
+                </a>
+              </>
+            )}
           </div>
         )}
       </div>

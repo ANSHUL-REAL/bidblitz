@@ -105,38 +105,41 @@ export class InjectedSigner {
    * need it, and routing through it would mean asking the wallet for a raw
    * signature it will not hand over.
    */
-  async send(functionName, args, gas) {
+  async send(functionName, args, gas, value = 0n) {
     if (!CONTRACT) throw new Error('The BidBlitz contract is not deployed yet — this is a one-time setup step by the organizer.')
     const data = encodeFunctionData({ abi: BIDBLITZ_ABI, functionName, args })
+    const tx = {
+      from: this.address,
+      to: CONTRACT,
+      data,
+      gas: toHex(gas),
+      maxFeePerGas: toHex(MAX_FEE),
+      maxPriorityFeePerGas: toHex(MAX_PRIORITY_FEE),
+    }
+    if (value && BigInt(value) > 0n) tx.value = toHex(BigInt(value))
     try {
-      return await this.provider.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: this.address,
-          to: CONTRACT,
-          data,
-          gas: toHex(gas),
-          maxFeePerGas: toHex(MAX_FEE),
-          maxPriorityFeePerGas: toHex(MAX_PRIORITY_FEE),
-        }],
-      })
+      return await this.provider.request({ method: 'eth_sendTransaction', params: [tx] })
     } catch (err) {
       if (err?.code === 4001) throw new Error('You rejected the transaction')
       throw new Error(String(err?.shortMessage || err?.message || err).slice(0, 140))
     }
   }
 
-  createRoom(name, mode = 0) { return this.send('createRoom', [name, Number(mode)], GAS.createRoom) }
+  createRoom(name, mode = 0, escrow = false) {
+    return this.send('createRoom', [name, Number(mode), Boolean(escrow)], GAS.createRoom)
+  }
   joinSquad(roomId, squadId) { return this.send('joinSquad', [Number(roomId), squadId], GAS.joinSquad) }
   joinSolo(roomId) { return this.send('joinSolo', [Number(roomId)], GAS.joinSolo) }
-  placeBid(roomId, lotId, amount) {
-    return this.send('placeBid', [Number(roomId), Number(lotId), BigInt(amount)], GAS.placeBid)
+  placeBid(roomId, lotId, amount, value = 0n) {
+    return this.send('placeBid', [Number(roomId), Number(lotId), BigInt(amount)], GAS.placeBid, BigInt(value || 0n))
   }
+  withdraw() { return this.send('withdraw', [], GAS.withdraw) }
   startLot(roomId, name, image, duration) {
     return this.send('startLot', [Number(roomId), name, image, Number(duration)], GAS.startLot)
   }
   sellLot(roomId, lotId) { return this.send('sellLot', [Number(roomId), Number(lotId)], GAS.sellLot) }
   closeLot(roomId) { return this.send('closeLot', [Number(roomId)], GAS.closeLot) }
+  finalize(roomId, lotId) { return this.send('finalize', [Number(roomId), Number(lotId)], GAS.finalize) }
 }
 
 /** Add Monad to the wallet without connecting — handy from a settings link. */

@@ -12,9 +12,12 @@ pragma solidity ^0.8.20;
  * versus 2,100 on Ethereum, so the hot path (placeBid) touches exactly two
  * slots — the packed Lot, and leadBidder.
  *
- * Purses are pure accounting. sellLot decrements a counter; no MON ever moves,
- * the contract holds no ether and has no payable functions, so it cannot go
- * insolvent, cannot trap funds, and has no reentrancy surface.
+ * Two settlement modes, chosen per room. In a PLAY-MONEY room purses are pure
+ * accounting: sellLot decrements a counter and no MON ever moves. In an ESCROW
+ * room bids are real MON — each new high bid is held by the contract, the
+ * outbid bidder is refunded, and on sale the winning bid is credited to the
+ * host. Every payout uses a pull pattern (withdraw), so the settlement path
+ * (placeBid/sellLot) never makes an external call and has no reentrancy surface.
  */
 contract BidBlitz {
     // --- errors (cheaper and smaller than require strings) ---
@@ -30,6 +33,9 @@ contract BidBlitz {
     error BadDuration();
     error BadEntity();
     error Soulbound();
+    error WrongValue();
+    error NothingToWithdraw();
+    error WithdrawFailed();
 
     uint16 public constant SQUAD_COUNT = 4;
 
@@ -55,6 +61,7 @@ contract BidBlitz {
         uint32  openLot;
         uint8   mode;
         bool    exists;
+        bool    escrow;   // true = real-MON auction (bids are escrowed, host is paid)
     }
 
     /// purse = remaining spendable. spent = cumulative, for closing stats.
@@ -78,6 +85,12 @@ contract BidBlitz {
     mapping(uint32 => mapping(uint32 => Lot))     public lots;
     mapping(uint32 => mapping(uint32 => address)) public leadBidder;
 
+    /// Real-MON escrow (escrow rooms only). Pull-payment balances: an outbid
+    /// bidder is refunded here, and a lot's winning bid is credited to the host
+    /// here on sale. Claimed via withdraw(). Pull, never push, so the settlement
+    /// path (placeBid/sellLot) makes no external call and has no reentrancy.
+    mapping(address => uint256) public pendingWithdrawals;
+
     /// Typed live by the host. NEVER read by placeBid, so live lots cost nothing
     /// on the hot path.
     mapping(uint32 => mapping(uint32 => string)) public lotName;
@@ -99,6 +112,8 @@ contract BidBlitz {
     event BidPlaced(uint32 indexed roomId, uint32 indexed lotId, address indexed bidder, uint16 entityId, uint96 amount, uint40 endsAt);
     event LotSold(uint32 indexed roomId, uint32 indexed lotId, address indexed winner, uint16 entityId, uint96 amount, string name);
     event LotUnsold(uint32 indexed roomId, uint32 indexed lotId, string name);
+    event Refunded(uint32 indexed roomId, uint32 indexed lotId, address indexed to, uint256 amount);
+    event Withdrawn(address indexed who, uint256 amount);
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
     modifier onlyHost(uint32 roomId) {
@@ -116,7 +131,10 @@ contract BidBlitz {
 
     /// Anyone can host. The creating wallet becomes the only controller.
     /// mode = MODE_SOLO (general/meme auction) or MODE_SQUADS (fantasy teams).
-    function createRoom(string calldata rname, uint8 mode) external returns (uint32 roomId) {
+    /// escrow = true makes it a real-MON auction: bids are escrowed and the
+    /// winning bid is paid to the host. Escrow only applies to solo auctions —
+    /// fantasy teams share a play-money purse and never hold real value.
+    function createRoom(string calldata rname, uint8 mode, bool escrow) external returns (uint32 roomId) {
         bool squads = mode == MODE_SQUADS;
         roomId = ++roomCount;
         rooms[roomId] = Room({
@@ -128,7 +146,8 @@ contract BidBlitz {
             lotCount: 0,
             openLot: 0,
             mode: squads ? MODE_SQUADS : MODE_SOLO,
-            exists: true
+            exists: true,
+            escrow: escrow && !squads
         });
         roomName[roomId] = rname;
 
@@ -194,20 +213,35 @@ contract BidBlitz {
      * someone send 2^96+5: the purse check passes on the big number while the
      * stored bid silently becomes 5.
      *
-     * Moves no funds. Only records who is winning.
+     * Play-money rooms move no funds and reject any msg.value. Escrow rooms
+     * require msg.value == amount (the bid is escrowed) and refund the previous
+     * leader to their pull-payment balance.
      */
-    function placeBid(uint32 roomId, uint32 lotId, uint96 amount) external {
+    function placeBid(uint32 roomId, uint32 lotId, uint96 amount) external payable {
+        Room storage r = rooms[roomId];
         uint16 e = entityOf[roomId][msg.sender];
         if (e == 0) revert NotJoined();
-        if (lotId == 0 || lotId != rooms[roomId].openLot) revert WrongLot();
+        if (lotId == 0 || lotId != r.openLot) revert WrongLot();
 
         Lot memory l = lots[roomId][lotId];              // one SLOAD, packed slot
         if (l.sold) revert WrongLot();
         if (block.timestamp >= l.endsAt) revert AuctionEnded();
         if (amount <= l.highestBid) revert BidTooLow(l.highestBid); // strict: block order breaks ties
 
-        uint128 purse = entities[roomId][e].purse;
-        if (uint128(amount) > purse) revert ExceedsPurse(purse);
+        if (r.escrow) {
+            // Real MON: escrow exactly the bid; refund the outbid leader (pull).
+            if (msg.value != amount) revert WrongValue();
+            address prev = leadBidder[roomId][lotId];
+            if (prev != address(0)) {
+                pendingWithdrawals[prev] += l.highestBid;
+                emit Refunded(roomId, lotId, prev, l.highestBid);
+            }
+        } else {
+            // Play money: no real value moves, and the bid must fit the purse.
+            if (msg.value != 0) revert WrongValue();
+            uint128 purse = entities[roomId][e].purse;
+            if (uint128(amount) > purse) revert ExceedsPurse(purse);
+        }
 
         // The clock only counts down — a bid never extends it.
         lots[roomId][lotId] = Lot({ highestBid: amount, endsAt: l.endsAt, leadEntity: e, sold: false });
@@ -249,21 +283,72 @@ contract BidBlitz {
             return;
         }
 
-        Entity storage ent = entities[roomId][l.leadEntity];
-        uint128 amt = uint128(l.highestBid);
-        if (amt > ent.purse) amt = ent.purse;   // clamp, never underflow
-        unchecked {
-            ent.purse -= amt;
-            ent.spent += amt;
+        if (rooms[roomId].escrow) {
+            // The winning bid is already escrowed in the contract; credit it to
+            // the host to pull. No purse accounting in real-MON rooms.
+            pendingWithdrawals[rooms[roomId].host] += l.highestBid;
+        } else {
+            Entity storage ent = entities[roomId][l.leadEntity];
+            uint128 amt = uint128(l.highestBid);
+            if (amt > ent.purse) amt = ent.purse;   // clamp, never underflow
+            unchecked {
+                ent.purse -= amt;
+                ent.spent += amt;
+            }
         }
 
         _mint(winner, badgeId(roomId, lotId), label);
         emit LotSold(roomId, lotId, winner, l.leadEntity, l.highestBid, label);
     }
 
-    /// Escape hatch if a lot needs abandoning without a sale.
+    /// Escape hatch if a lot needs abandoning without a sale. In an escrow room
+    /// the current leader is refunded so their MON is never trapped. Marks the
+    /// lot sold so sellLot won't later re-settle (and double-pay) it.
     function closeLot(uint32 roomId) external onlyHost(roomId) {
-        rooms[roomId].openLot = 0;
+        Room storage r = rooms[roomId];
+        uint32 lotId = r.openLot;
+        r.openLot = 0;
+        if (lotId == 0) return;
+        Lot storage l = lots[roomId][lotId];
+        if (l.sold) return;
+        l.sold = true;
+        if (r.escrow) {
+            address leader = leadBidder[roomId][lotId];
+            if (leader != address(0)) {
+                pendingWithdrawals[leader] += l.highestBid;
+                emit Refunded(roomId, lotId, leader, l.highestBid);
+            }
+        }
+        emit LotUnsold(roomId, lotId, lotName[roomId][lotId]);
+    }
+
+    /**
+     * Trustless settlement. Once a lot's timer has expired, ANYONE can finalize
+     * it — the winning bidder to claim their badge, or anyone to unstick it — so
+     * escrowed real MON is never trapped by an absent host. Before expiry only
+     * the host may end a lot early (sellLot). Never reverts.
+     */
+    function finalize(uint32 roomId, uint32 lotId) external {
+        Room storage r = rooms[roomId];
+        if (!r.exists) return;
+        if (lotId == 0 || lotId > r.lotCount) return;
+        Lot storage l = lots[roomId][lotId];
+        if (l.sold) { if (r.openLot == lotId) r.openLot = 0; return; }
+        if (block.timestamp < l.endsAt) return;   // still live — only the host may end early
+        l.sold = true;
+        if (r.openLot == lotId) r.openLot = 0;
+        _settle(roomId, lotId);
+    }
+
+    /// Pull refunds (outbid) and proceeds (host, on sale) in escrow rooms.
+    /// Checks-effects-interactions + zero-before-call makes this reentrancy-safe.
+    function withdraw() external {
+        uint256 amt = pendingWithdrawals[msg.sender];
+        if (amt == 0) revert NothingToWithdraw();
+        pendingWithdrawals[msg.sender] = 0;
+        (bool ok, ) = msg.sender.call{value: amt}("");
+        if (!ok) { pendingWithdrawals[msg.sender] = amt; revert WithdrawFailed(); }
+        emit Withdrawn(msg.sender, amt);
     }
 
     // ------------------------------------------------------------------ views
@@ -286,6 +371,7 @@ contract BidBlitz {
         uint256 blockNumber;
         uint16  nEntities;
         uint8   mode;
+        bool    escrow;
         uint128[] squadPurses;
     }
 
@@ -303,6 +389,7 @@ contract BidBlitz {
         s.blockNumber = block.number;
         s.nEntities = r.entityCount;
         s.mode = r.mode;
+        s.escrow = r.escrow;
 
         // Falls back to the most recent lot so the SOLD reveal stays on screen
         // after the lot closes, instead of blanking.
@@ -342,6 +429,7 @@ contract BidBlitz {
         uint32  openLot;
         uint16  entityCount;
         uint8   mode;
+        bool    escrow;
         uint40  createdAt;
     }
 
@@ -360,6 +448,7 @@ contract BidBlitz {
                 openLot: r.openLot,
                 entityCount: r.entityCount,
                 mode: r.mode,
+                escrow: r.escrow,
                 createdAt: r.createdAt
             });
         }

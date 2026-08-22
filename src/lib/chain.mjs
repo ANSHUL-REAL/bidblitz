@@ -49,10 +49,12 @@ export const GAS = {
   createRoom: 260_000n, // writes 4 squad purses + the room record
   joinSquad: 70_000n,
   joinSolo: 105_000n,
-  placeBid: 82_000n,    // nested room mapping adds one keccak vs the flat layout
+  placeBid: 120_000n,   // covers the escrow path's refund SSTORE + Refunded event
   startLot: 130_000n,
   sellLot: 175_000n,    // includes the badge mint and its label
-  closeLot: 60_000n,
+  closeLot: 80_000n,    // escrow close also refunds the current leader
+  withdraw: 60_000n,    // zero one slot + a value transfer to an EOA
+  finalize: 190_000n,   // permissionless settle after expiry (incl. badge mint)
 }
 
 export const feeParams = () => ({
