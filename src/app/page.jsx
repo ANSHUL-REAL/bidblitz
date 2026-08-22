@@ -259,6 +259,18 @@ function HostOrJoin() {
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8, color: '#5b28d9' }}>Fantasy League</div>
             <div style={{ fontSize: 14, color: '#6b6d78', marginTop: 4, lineHeight: 1.4 }}>A four-team draft — squads share a purse. Its own mode.</div>
           </Link>
+
+          <Link
+            href="/demo"
+            style={{
+              textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#fff', color: '#12121c',
+              border: '2px solid #e6e2f5', display: 'block',
+            }}
+          >
+            <div style={{ fontSize: 30 }}>🎮</div>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8, color: '#5b28d9' }}>Play Solo</div>
+            <div style={{ fontSize: 14, color: '#6b6d78', marginTop: 4, lineHeight: 1.4 }}>Practice against bots — be the host or a bidder. No room, no wallet needed.</div>
+          </Link>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 16 }}>
