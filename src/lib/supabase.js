@@ -1,0 +1,126 @@
+'use client'
+/**
+ * Supabase — presentation state only (rooms' categories, item roster, avatars).
+ *
+ * The chain is the source of truth for money. This layer is deliberately
+ * best-effort: every call swallows its errors and returns a safe empty value,
+ * so a missing key or a Supabase outage degrades the UI (generic avatars, no
+ * preset roster) but can never break an auction or lose a bid. See
+ * supabase/schema.sql for the tables and the RLS reasoning.
+ */
+import { createClient } from '@supabase/supabase-js'
+
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// One client for the browser session. Null when unconfigured OR when the URL is
+// malformed — createClient validates the URL synchronously and THROWS, so an
+// unguarded call at module scope would crash every page that imports this and
+// block bidding entirely. Degrade to null instead; every call site guards on it.
+let _client = null
+try {
+  if (URL && KEY) _client = createClient(URL, KEY, { auth: { persistSession: false } })
+} catch (e) {
+  if (typeof console !== 'undefined') console.warn('[supabase] disabled:', e?.message || e)
+}
+
+export const supabase = _client
+export const hasSupabase = Boolean(_client)
+
+const ok = (data) => ({ data, error: null })
+const fail = (error) => ({ data: null, error })
+
+/** Create or update a room's metadata (categories, title, host). */
+export async function upsertRoom({ code, roomId, mode, title, hostName, hostAddr, categories }) {
+  if (!supabase || !code) return fail('no-supabase')
+  try {
+    const row = {
+      code,
+      room_id: roomId != null ? Number(roomId) : null,
+      mode: Number(mode ?? 0),
+      title: title ?? null,
+      host_name: hostName ?? null,
+      host_addr: hostAddr ?? null,
+      categories: categories ?? [],
+      updated_at: new Date().toISOString(),
+    }
+    const { data, error } = await supabase.from('rooms').upsert(row, { onConflict: 'code' }).select().single()
+    return error ? fail(error) : ok(data)
+  } catch (e) { return fail(e) }
+}
+
+/** Read one room's metadata, or null if none / unconfigured. */
+export async function getRoom(code) {
+  if (!supabase || !code) return null
+  try {
+    const { data } = await supabase.from('rooms').select('*').eq('code', code).maybeSingle()
+    return data ?? null
+  } catch { return null }
+}
+
+/** The item roster for a room, ordered. Empty array when unconfigured. */
+export async function listItems(code) {
+  if (!supabase || !code) return []
+  try {
+    const { data } = await supabase.from('room_items').select('*').eq('room_code', code).order('sort_order', { ascending: true })
+    return data ?? []
+  } catch { return [] }
+}
+
+/** Add one item to a room's roster. */
+export async function addItem({ code, name, imageUrl, category, sortOrder }) {
+  if (!supabase || !code || !name) return fail('no-supabase')
+  try {
+    const { data, error } = await supabase.from('room_items').insert({
+      room_code: code, name, image_url: imageUrl ?? null, category: category ?? null, sort_order: sortOrder ?? 0,
+    }).select().single()
+    return error ? fail(error) : ok(data)
+  } catch (e) { return fail(e) }
+}
+
+/** Link a roster row to its on-chain lot once it has been started. */
+export async function markItemStarted(id, chainLotId) {
+  if (!supabase || !id) return fail('no-supabase')
+  try {
+    const { error } = await supabase.from('room_items').update({ chain_lot_id: Number(chainLotId) }).eq('id', id)
+    return error ? fail(error) : ok(true)
+  } catch (e) { return fail(e) }
+}
+
+/** Record (or update) a participant's display name + avatar for a room. */
+export async function upsertParticipant({ code, addr, name, avatarSeed, squad }) {
+  if (!supabase || !code || !addr) return fail('no-supabase')
+  try {
+    const row = {
+      room_code: code,
+      addr: String(addr).toLowerCase(),
+      name: name ?? null,
+      avatar_seed: avatarSeed ?? null,
+      squad: squad != null ? Number(squad) : null,
+    }
+    const { data, error } = await supabase.from('participants').upsert(row, { onConflict: 'room_code,addr' }).select().single()
+    return error ? fail(error) : ok(data)
+  } catch (e) { return fail(e) }
+}
+
+/** Everyone who has joined a room (for the big screen / leaderboard). */
+export async function listParticipants(code) {
+  if (!supabase || !code) return []
+  try {
+    const { data } = await supabase.from('participants').select('*').eq('room_code', code)
+    return data ?? []
+  } catch { return [] }
+}
+
+/**
+ * Subscribe to live participant changes (avatars popping onto the big screen).
+ * Returns an unsubscribe function; a no-op when unconfigured.
+ */
+export function onParticipants(code, cb) {
+  if (!supabase || !code) return () => {}
+  const ch = supabase
+    .channel(`participants:${code}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `room_code=eq.${code}` }, cb)
+    .subscribe()
+  return () => { try { supabase.removeChannel(ch) } catch {} }
+}

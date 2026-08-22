@@ -2,12 +2,13 @@
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { MonadMark } from '../../components/Logo'
+import { BidBlitzMark } from '../../components/Logo'
 import { JoinCard } from '../../components/JoinCard'
 import { CategoryPicker } from '../../components/CategoryPicker'
 import { useSession } from '../../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../../lib/room.mjs'
 import { modeForCategories } from '../../lib/categories.mjs'
+import { upsertRoom } from '../../lib/supabase'
 
 /** Poll the lobby for the room this wallet just created (we never await receipts). */
 async function waitForMyRoom(address, title, tries = 25) {
@@ -44,7 +45,7 @@ function HostInner() {
       <header style={{ background: '#fff', boxShadow: '0 1px 0 rgba(18,18,28,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ maxWidth: 980, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#12121c' }}>
-            <MonadMark size={28} />
+            <BidBlitzMark size={28} />
             <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 22 }}>
               Bid<span style={{ color: '#6b2de6' }}>Blitz</span>
             </span>
@@ -143,7 +144,15 @@ function CreateTab({ session, router }) {
       await signer.createRoom(clean, mode)
       const mine = await waitForMyRoom(signer.address, clean)
       if (mine) {
-        try { localStorage.setItem(`bidblitz:cats:${mine}`, JSON.stringify(isFantasy ? ['fantasy'] : cats)) } catch {}
+        const chosen = isFantasy ? ['fantasy'] : cats
+        try { localStorage.setItem(`bidblitz:cats:${mine}`, JSON.stringify(chosen)) } catch {}
+        // Persist the room's presentation state so every phone that joins sees
+        // the same categories/title, not just this host's browser. Best-effort:
+        // upsertRoom no-ops if Supabase isn't configured.
+        upsertRoom({
+          code: roomCode(mine), roomId: mine, mode, title: clean,
+          hostName: session.identity?.name, hostAddr: signer.address, categories: chosen,
+        }).catch(() => {})
         router.push(`/r/${roomCode(mine)}/host`)
       } else {
         setError('Room sent — it will appear in the lobby shortly')

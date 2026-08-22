@@ -4,6 +4,9 @@ import { deriveAccount, normalizeName } from '../lib/identity.mjs'
 import { squadForAddress } from '../lib/tx.mjs'
 import { hasInjectedWallet, walletLabel } from '../lib/wallet.mjs'
 import { squadOf } from '../lib/format.mjs'
+import { roomCode, roomIdFromCode } from '../lib/room.mjs'
+import { Avatar, AVATAR_SEEDS } from './Avatar'
+import { upsertParticipant } from '../lib/supabase'
 
 /**
  * Two ways in, deliberately unequal.
@@ -15,12 +18,34 @@ import { squadOf } from '../lib/format.mjs'
  * (Lace cannot appear here: it is a Cardano wallet and does not implement
  * EIP-1193, so it has no way to talk to Monad or any other EVM chain.)
  */
-export function JoinCard({ session, roomName, mode, cta = 'JOIN THE RACE' }) {
+export function JoinCard({ session, roomName, mode, code, cta = 'JOIN THE RACE' }) {
   const fantasy = Number(mode) === 1
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
+  // Start deterministic (SSR and first client render must agree, or React throws
+  // a hydration mismatch), then randomise after mount so a room isn't a sea of
+  // identical faces. They can still pick.
+  const [avatarSeed, setAvatarSeed] = useState(AVATAR_SEEDS[0])
   const [error, setError] = useState('')
   const [wallet, setWallet] = useState(null)
+
+  useEffect(() => {
+    setAvatarSeed(AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)])
+  }, [])
+
+  // Save the chosen name + avatar so the big screen shows them instead of a
+  // shortened address. Best-effort: no-op when Supabase isn't configured. The
+  // code is canonicalised (uppercased, zero-padded) so the row matches the
+  // room and the big screen's lookup — a lowercase/unpadded URL would otherwise
+  // write under a mismatched key and be dropped by the foreign key.
+  const saveParticipant = (addr) => {
+    if (!addr) return
+    const rc = code ? roomCode(roomIdFromCode(code)) : code
+    upsertParticipant({
+      code: rc, addr, name: normalizeName(name) || undefined, avatarSeed,
+      squad: fantasy ? squadForAddress(addr) : null,
+    }).catch(() => {})
+  }
 
   useEffect(() => {
     setWallet(hasInjectedWallet() ? walletLabel() : null)
@@ -41,7 +66,8 @@ export function JoinCard({ session, roomName, mode, cta = 'JOIN THE RACE' }) {
     if (busy) return
     setError('')
     try {
-      await session.joinWithPassword(name, password)
+      const s = await session.joinWithPassword(name, password)
+      saveParticipant(s?.address)
     } catch (err) {
       setError(String(err?.message || err))
     }
@@ -51,7 +77,8 @@ export function JoinCard({ session, roomName, mode, cta = 'JOIN THE RACE' }) {
     if (busy) return
     setError('')
     try {
-      await session.connectWallet()
+      const s = await session.connectWallet()
+      saveParticipant(s?.address)
     } catch (err) {
       setError(String(err?.message || err))
     }
@@ -96,6 +123,28 @@ export function JoinCard({ session, roomName, mode, cta = 'JOIN THE RACE' }) {
           These two generate your wallet, and regenerate it on any device.{' '}
           <strong>Don&apos;t reuse a real password</strong> — this is testnet play money.
         </p>
+
+        <label style={{ display: 'block', marginTop: 16, fontWeight: 700, fontSize: 13, letterSpacing: '.1em', color: '#6b6d78' }}>
+          PICK YOUR FACE
+        </label>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
+          {AVATAR_SEEDS.map((seed) => {
+            const active = seed === avatarSeed
+            return (
+              <button
+                key={seed} type="button" title={seed}
+                onClick={() => setAvatarSeed(seed)}
+                style={{
+                  flexShrink: 0, padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+                  borderRadius: '50%', outline: active ? '3px solid #6b2de6' : '3px solid transparent',
+                  outlineOffset: 2, opacity: active ? 1 : 0.6, transition: 'opacity .15s, outline-color .15s',
+                }}
+              >
+                <Avatar seed={seed} size={40} />
+              </button>
+            )
+          })}
+        </div>
 
         {squad && (
           <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: `${squad.color}22`, display: 'flex', alignItems: 'center', gap: 10 }}>

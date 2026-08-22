@@ -12,6 +12,17 @@ import { adventurer } from '@dicebear/collection'
  * Generated from the npm package, not api.dicebear.com — no network call, so
  * venue wifi can never blank out someone's face.
  */
+/**
+ * A small, fixed palette of avatar seeds people pick from when they join. Names
+ * (not addresses) so the choices look intentional; the resulting face is still
+ * deterministic per seed and drawn locally, so it renders identically on every
+ * phone and on the big screen.
+ */
+export const AVATAR_SEEDS = [
+  'Comet', 'Rocket', 'Tiger', 'Panda', 'Ninja', 'Ace',
+  'Volt', 'Maverick', 'Pixel', 'Turbo', 'Nova', 'Ghost',
+]
+
 export function avatarDataUri(seed) {
   return createAvatar(adventurer, {
     seed: String(seed ?? '?'),

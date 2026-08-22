@@ -241,14 +241,20 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
 }
 
 /** Live bidders while a lot runs; squads racing on purse between lots. */
-export function racersFromState(state, { myAddress } = {}) {
-  const live = (state?.racers ?? []).map((r) => ({
-    key: r.bidder,
-    label: r.bidder?.toLowerCase() === myAddress?.toLowerCase() ? 'You' : shortAddress(r.bidder),
-    amount: r.amount,
-    seed: r.bidder,
-    entityId: r.entityId,
-  }))
+export function racersFromState(state, { myAddress, participants } = {}) {
+  const live = (state?.racers ?? []).map((r) => {
+    // A joiner who picked a name/avatar (stored in Supabase) shows that instead
+    // of a shortened 0x… address and an address-derived face.
+    const p = participants?.get?.(r.bidder?.toLowerCase())
+    const mine = r.bidder?.toLowerCase() === myAddress?.toLowerCase()
+    return {
+      key: r.bidder,
+      label: mine ? 'You' : (p?.name || shortAddress(r.bidder)),
+      amount: r.amount,
+      seed: p?.avatar_seed || r.bidder,
+      entityId: r.entityId,
+    }
+  })
   if (live.length) return live
 
   return SQUADS.map((sq, i) => ({
