@@ -78,7 +78,7 @@ function Header({ session }) {
             <a className="nav-link" href="#how">How it works</a>
             <a className="nav-link" href="#about">About</a>
             <a className="nav-link" href="#faq">FAQ</a>
-            <a className="nav-link" href="/account">Host login</a>
+            <a className="nav-link" href="/account">History &amp; login</a>
             <a className="nav-link" href="/demo">Try demo</a>
           </div>
           <a
