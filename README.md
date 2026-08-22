@@ -4,7 +4,7 @@
 four-character code, and the whole room bids in real time on a shared big screen — no
 wallet install, no seed phrase. Built for Monad Blitz Hyderabad.
 
-- **Live contract (Monad testnet):** [`0xe6ead02c583de6d75e02e4bb541f8b4034db87bf`](https://testnet.monadscan.com/address/0xe6ead02c583de6d75e02e4bb541f8b4034db87bf)
+- **Live contract (Monad testnet):** [`0x2bebf0247d1bcc007935237c723ebbac6ade8f59`](https://testnet.monadscan.com/address/0x2bebf0247d1bcc007935237c723ebbac6ade8f59)
 - **Chain:** Monad testnet (chain id `10143`)
 
 ---
@@ -15,13 +15,17 @@ Three ways to run a room, all writing to the same contract:
 
 - **Auction** — solo bidding on anything: memes, NFTs, games, cards, art, IRL items, or a
   category you name yourself. Add items live (paste an image, or use a preset), run each
-  lot on a timer, sell to the highest bid.
+  lot on a timer, sell to the highest bid. Pick **Play money** (bids are a game score) or
+  **Real payout**: bids are real MON escrowed on-chain, outbid bidders are refunded, and
+  the winning bid is paid to the host — collected with a `withdraw()` you can show as proof.
 - **Fantasy League** — a four-team draft (its own mode). Everyone who joins is drafted onto
   a squad; teammates share a purse and draft players together.
 - **Play Solo** — a full practice auction against bots, no room and no wallet needed.
 
-Every bid, sale, and winner badge is on-chain and independently verifiable on the block
-explorer — you don't have to trust the app's UI.
+Every bid, sale, refund, and winner badge is on-chain and independently verifiable on the
+block explorer — you don't have to trust the app's UI. A live, chain-derived
+**transaction history** (`/r/<code>/history`) shows the whole room's ledger with a link to
+every real transaction.
 
 ## Why Monad
 
@@ -98,8 +102,8 @@ To try it with no chain at all, just `npm run dev` and open **/demo**.
 
 ## Stack
 
-Next.js 16 · viem · solc-js (no Foundry) · DiceBear (local avatars) · Upstash Redis
-(funding lock) · Monad testnet.
+Next.js 16 · viem · solc-js (no Foundry) · DiceBear (local avatars) · Supabase (room
+metadata, item roster, participant avatars) · Upstash Redis (funding lock) · Monad testnet.
 
 ## Safety
 
