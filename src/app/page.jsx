@@ -9,7 +9,7 @@ import { useDemoRace } from '../lib/demoRace'
 import { useSession } from '../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../lib/room.mjs'
 import { formatAmount } from '../lib/format.mjs'
-import { CATEGORIES, modeForCategories } from '../lib/categories.mjs'
+import { CATEGORIES, modeForCategories, isCustomCat, makeCustomCat, catLabel } from '../lib/categories.mjs'
 
 const EASE = 'cubic-bezier(.2,.7,.2,1)'
 
@@ -218,12 +218,21 @@ function HostOrJoin({ session }) {
   const [code, setCode] = useState('')
   const [roomTitle, setRoomTitle] = useState('')
   const [cats, setCats] = useState(['memes'])
+  const [customCat, setCustomCat] = useState('')
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
   const { signer } = session
 
   const toggleCat = (id) =>
     setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
+
+  const addCustomCat = () => {
+    const name = customCat.trim()
+    if (!name) return
+    const id = makeCustomCat(name)
+    setCats((c) => (c.includes(id) ? c : [...c, id]))
+    setCustomCat('')
+  }
 
   function goJoin(e) {
     e.preventDefault()
@@ -380,6 +389,46 @@ function HostOrJoin({ session }) {
                     </button>
                   )
                 })}
+
+                {/* host-defined categories */}
+                {cats.filter(isCustomCat).map((id) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className="btn-plain"
+                    onClick={() => toggleCat(id)}
+                    title="Your custom category — tap to remove"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px',
+                      borderRadius: 999, fontWeight: 600, fontSize: 14,
+                      border: '1.5px solid #6b2de6', background: '#6b2de6', color: '#fff',
+                    }}
+                  >
+                    <span aria-hidden="true">✨</span> {catLabel(id)} <span style={{ opacity: .7 }}>×</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* name your own */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input
+                  className="field"
+                  style={{ fontSize: 14, padding: '10px 14px' }}
+                  value={customCat}
+                  onChange={(e) => setCustomCat(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCat() } }}
+                  placeholder="Add your own category — sneakers, startups, anything"
+                  maxLength={24}
+                />
+                <button
+                  type="button"
+                  className="btn-plain"
+                  onClick={addCustomCat}
+                  disabled={!customCat.trim()}
+                  style={{ padding: '0 18px', borderRadius: 12, fontWeight: 700, border: '1.5px solid #e6e2f5', background: customCat.trim() ? '#efeafd' : '#f3f1fa', color: customCat.trim() ? '#5b28d9' : '#b7b0d4' }}
+                >
+                  Add
+                </button>
               </div>
               <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: '#9c94bd' }}>
                 {cats.includes('fantasy')

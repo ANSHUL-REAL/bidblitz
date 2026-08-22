@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useLayoutEffect, useRef } from 'react'
 import { formatAmount, squadOf, SQUADS, shortAddress } from '../lib/format.mjs'
 import { Avatar } from './Avatar'
 
@@ -56,12 +56,44 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
     })
   }, [racers])
 
+  const containerRef = useRef(null)
+  const prevTops = useRef(new Map())
+
+  // FLIP the lanes so an overtake slides past instead of snapping. Measured by
+  // offsetTop (layout position, transform-independent) so the frequent hero/demo
+  // re-renders don't restart a slide in progress. The base scale rides in a
+  // --s custom property, so the slide transform never clobbers the leader's grow.
+  useLayoutEffect(() => {
+    const c = containerRef.current
+    if (!c) return
+    const seen = new Set()
+    for (const node of c.children) {
+      const key = node.dataset.key
+      if (!key) continue
+      seen.add(key)
+      const top = node.offsetTop
+      const old = prevTops.current.get(key)
+      if (old != null && Math.abs(old - top) > 1) {
+        const dy = old - top
+        node.style.transition = 'none'
+        node.style.transform = `translateY(${dy}px) scale(var(--s))`
+        node.getBoundingClientRect() // reflow
+        requestAnimationFrame(() => {
+          node.style.transition = 'transform .6s cubic-bezier(.2,.85,.25,1)'
+          node.style.transform = 'scale(var(--s))'
+        })
+      }
+      prevTops.current.set(key, top)
+    }
+    for (const k of [...prevTops.current.keys()]) if (!seen.has(k)) prevTops.current.delete(k)
+  })
+
   if (!lanes.length) return null
 
   const s = scale
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 30 * s, padding: '10px 0' }}>
+    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 30 * s, padding: '10px 0' }}>
       {lanes.map((r, i) => {
         const trailH = (r.lead ? 40 : 30) * s
         const ball = (r.lead ? 62 : 52) * s
@@ -76,9 +108,11 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
         return (
           <div
             key={r.key}
+            data-key={r.key}
             style={{
               display: 'flex', alignItems: 'center', gap: 0,
-              transform: `scale(${r.lead ? 1.045 : 1})`,
+              '--s': r.lead ? 1.045 : 1,
+              transform: 'scale(var(--s))',
               transition: 'transform .5s cubic-bezier(.2,.7,.2,1)',
             }}
           >

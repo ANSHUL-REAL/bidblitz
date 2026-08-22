@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { MonadMark } from '../../components/Logo'
 import { RaceTrack } from '../../components/RaceTrack'
 import { Avatar } from '../../components/Avatar'
+import { Leaderboard } from '../../components/Leaderboard'
 import { DemoEngine } from '../../lib/demoEngine'
 import { formatAmount, MON } from '../../lib/format.mjs'
 import { IMAGE_LIBRARY } from '../../lib/lots.mjs'
-import { CATEGORIES, itemsForCategories } from '../../lib/categories.mjs'
+import { CATEGORIES, itemsForCategories, isCustomCat, makeCustomCat, catLabel } from '../../lib/categories.mjs'
 
 /**
  * Fully client-side playground. Runs the real product UX — host manager, live
@@ -106,30 +107,36 @@ function racersFrom(snap) {
     .map((b) => ({ key: b.id, label: b.name, amount: b.purse, seed: b.id }))
 }
 
-function Standings({ snap }) {
-  const rows = [...snap.bidders].sort((a, b) => b.wins - a.wins || (b.spent > a.spent ? 1 : -1))
+function Standings({ snap, dark = false }) {
+  // Rank by purse spent + wins so overtakes happen live as bids land.
+  const rows = [...snap.bidders].sort((a, b) => b.wins - a.wins || (b.spent > a.spent ? 1 : -1) || (a.purse > b.purse ? 1 : -1)).map((b, i) => ({ ...b, rank: i + 1 }))
+  const rowBg = dark ? '#1c1436' : '#fff'
+  const meBg = dark ? '#2a2050' : '#efeafd'
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      {rows.map((b) => (
+    <Leaderboard
+      items={rows}
+      getKey={(b) => b.id}
+      dark={dark}
+      renderRow={(b, i) => (
         <div
-          key={b.id}
           style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-            background: b.id === 'you' ? '#efeafd' : '#fff', borderRadius: 10,
-            border: '1px solid #eeecf7',
+            background: b.id === 'you' ? meBg : rowBg, borderRadius: 12,
+            border: `1px solid ${dark ? '#2a2050' : '#eeecf7'}`,
           }}
         >
+          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: '#9c94bd', width: 16, textAlign: 'right' }}>{b.rank}</span>
           <Avatar seed={b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />
-          <span style={{ fontWeight: 700, fontSize: 14, flex: 1 }}>
+          <span style={{ fontWeight: 700, fontSize: 14, flex: 1, color: dark ? '#fff' : '#12121c' }}>
             {b.name}{b.id === 'you' ? ' (you)' : ''}
           </span>
-          <span style={{ fontSize: 12, color: '#6b6d78' }}>{b.wins} won</span>
-          <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 15, minWidth: 92, textAlign: 'right' }}>
+          <span style={{ fontSize: 12, color: '#8d85b4' }}>{b.wins} won</span>
+          <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 15, minWidth: 92, textAlign: 'right', color: dark ? '#fff' : '#12121c' }}>
             {formatAmount(b.purse)} <span style={{ fontSize: 11, color: '#6b2de6' }}>MON</span>
           </span>
         </div>
-      ))}
-    </div>
+      )}
+    />
   )
 }
 
@@ -140,9 +147,11 @@ function HostPane({ snap, engine }) {
   const [image, setImage] = useState('')
   const [duration, setDuration] = useState(20)
   const [cats, setCats] = useState(['memes'])
+  const [customCat, setCustomCat] = useState('')
   const [msg, setMsg] = useState('')
   const presets = itemsForCategories(cats)
   const toggleCat = (id) => setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
+  const addCustomCat = () => { const n = customCat.trim(); if (!n) return; const id = makeCustomCat(n); setCats((c) => (c.includes(id) ? c : [...c, id])); setCustomCat('') }
 
   const open = snap.openLot
   const live = open && open.status === 'live'
@@ -262,6 +271,17 @@ function HostPane({ snap, engine }) {
               </button>
             )
           })}
+          {cats.filter(isCustomCat).map((id) => (
+            <button key={id} className="btn-plain" onClick={() => toggleCat(id)} title="Your category — tap to remove"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, fontSize: 13, fontWeight: 600, border: '1.5px solid #6b2de6', background: '#6b2de6', color: '#fff' }}>
+              <span aria-hidden="true">✨</span> {catLabel(id)} <span style={{ opacity: .7 }}>×</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <input className="field" style={{ fontSize: 13, padding: '9px 12px' }} value={customCat} onChange={(e) => setCustomCat(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCat() } }} placeholder="Add your own category…" maxLength={24} />
+          <button className="btn-plain" onClick={addCustomCat} disabled={!customCat.trim()} style={{ padding: '0 16px', borderRadius: 10, fontWeight: 700, border: '1.5px solid #e6e2f5', background: customCat.trim() ? '#efeafd' : '#f3f1fa', color: customCat.trim() ? '#5b28d9' : '#b7b0d4' }}>Add</button>
         </div>
 
         {presets.length > 0 && (

@@ -122,3 +122,9 @@ export function itemsForCategories(ids = []) {
   }
   return out
 }
+
+/** Host-defined categories carry their name inline: "custom:Sneakers". */
+export const isCustomCat = (id) => typeof id === 'string' && id.startsWith('custom:')
+export const makeCustomCat = (name) => `custom:${String(name).trim().slice(0, 24)}`
+export const catLabel = (id) => (isCustomCat(id) ? id.slice(7) : categoryById(id)?.label ?? id)
+export const catEmoji = (id) => (isCustomCat(id) ? '✨' : categoryById(id)?.emoji ?? '•')
