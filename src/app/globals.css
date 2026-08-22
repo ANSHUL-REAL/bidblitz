@@ -1,0 +1,204 @@
+/* ---------------------------------------------------------------------------
+   BidBlitz design system
+   Ported from the BidBlitz Hero canvas, with the palette corrected to Monad's
+   official brand palette (#6E54FF) rather than the #6b2de6 approximation. The
+   widely-copied #836EF9 is Monad's LEGACY purple.
+
+   Two surfaces, deliberately different:
+     .surface-light  phones — held close, brand-forward, matches the hero
+     .surface-dark   the projector — near-black with saturated accents, because
+                     projectors turn mid-greys to mud in a lit room
+--------------------------------------------------------------------------- */
+
+:root {
+  /* Monad brand — official palette, Brand Guidelines v.02.01.
+     NOTE: #836EF9 is the LEGACY purple. It still appears on docs.monad.xyz and
+     across most third-party material, but the current brand colour is #6E54FF. */
+  --monad-purple: #6e54ff;
+  --monad-dark: #0e091c;      /* Dark Purple — the sanctioned dark background */
+  --monad-light-purple: #ddd7fe;
+  --monad-offwhite: #fbfaf9;
+  --monad-offblack: #1b1d21;
+
+  /* Official secondary palette. Purple must stay dominant — these accent. */
+  --monad-cyan: #85e6ff;
+  --monad-light-blue: #b9e3f9;
+  --monad-pink: #ff8ee4;
+  --monad-orange: #ffae45;
+
+  /* Derived ramp around #6E54FF */
+  --purple-050: #efecff;
+  --purple-100: var(--monad-light-purple);
+  --purple-200: #c3b8ff;
+  --purple-400: #9384ff;
+  --purple-500: var(--monad-purple);
+  --purple-600: #5a3df0;
+  --purple-700: #472dd4;
+  --purple-900: #24138f;
+
+  /* Semantic — light surface */
+  --bg: var(--monad-offwhite);
+  --bg-2: #f1eff9;
+  --surface: #ffffff;
+  --ink: var(--monad-offblack);
+  --ink-2: #3a3c44;
+  --ink-3: #6b6d78;
+  --line: #ebe8f6;
+
+  --gold: #fbbf24;
+  --live: #ff4d4d;
+  --win: #22c55e;
+
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 2px 8px rgba(30, 20, 70, 0.06);
+  --shadow: 0 10px 24px rgba(110, 84, 255, 0.18);
+  --shadow-lg: 0 22px 60px rgba(30, 20, 70, 0.1);
+  --glow: 0 0 40px rgba(110, 84, 255, 0.45);
+
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body { overflow-x: hidden; }
+
+/* Stop iOS zooming the page when a bid input is focused mid-auction. */
+input, button, select, textarea { font-family: inherit; font-size: 16px; }
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  line-height: 0.92;
+}
+
+.mono { font-family: var(--font-mono); }
+
+/* --- dark surface: the projector ----------------------------------------
+   Built on Monad Dark Purple (#0E091C), the sanctioned dark background.
+   Deliberately near-black rather than mid-grey: projectors in a lit room turn
+   mid-greys to mud, while saturated accents on near-black stay readable. */
+.surface-dark {
+  --bg: var(--monad-dark);
+  --bg-2: #150e2b;
+  --surface: #1c1436;
+  --ink: #ffffff;
+  --ink-2: #cdc6ee;
+  --ink-3: #8d85b4;
+  --line: #2a2050;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* --- motion -------------------------------------------------------------- */
+@keyframes bb-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes bb-shimmer { 0% { transform: translateX(-120%) skewX(-18deg); } 60%, 100% { transform: translateX(320%) skewX(-18deg); } }
+@keyframes bb-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(110, 84, 255, 0.34); } 50% { box-shadow: 0 0 0 14px rgba(110, 84, 255, 0); } }
+@keyframes bb-bolt { 0%, 100% { opacity: 1; } 45% { opacity: 0.35; } 55% { opacity: 1; } }
+@keyframes bb-bob { 0%, 100% { transform: translateY(-50%); } 50% { transform: translateY(calc(-50% - 3px)); } }
+@keyframes bb-spin { to { transform: rotate(360deg); } }
+@keyframes bb-slam {
+  0% { transform: scale(2.6) rotate(-14deg); opacity: 0; }
+  55% { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  75% { transform: scale(1.06) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes bb-flash { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+.rise { animation: bb-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Respect the setting, but never disable the SOLD reveal — it is the moment. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- shared atoms -------------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--purple-050);
+  color: var(--purple-700);
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+}
+
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--purple-500);
+  color: #fff;
+  border: none;
+  padding: 20px 30px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+.btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(110, 84, 255, 0.36); }
+.btn:active:not(:disabled) { transform: translateY(0) scale(0.985); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 38%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: bb-shimmer 3.6s ease-in-out infinite;
+}
+
+.field {
+  width: 100%;
+  padding: 16px 18px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.field:focus { border-color: var(--purple-400); box-shadow: 0 0 0 4px var(--purple-050); }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}

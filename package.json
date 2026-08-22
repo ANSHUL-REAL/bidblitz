@@ -1,0 +1,30 @@
+{
+  "name": "bidblitz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "wallets": "node scripts/wallets.mjs",
+    "balance": "node scripts/check-balance.mjs",
+    "compile": "node scripts/compile.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:ping": "node scripts/deploy.mjs Ping",
+    "fund-relayers": "node scripts/fund-relayers.mjs",
+    "bots": "node scripts/bots.mjs"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.35.0",
+    "next": "^16.3.2",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "viem": "^2.55.19"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.0",
+    "solc": "^0.8.36"
+  }
+}
