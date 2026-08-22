@@ -108,6 +108,9 @@ function RoomHeader({ state, code, session }) {
           <Link href={`/r/${code}/leaderboard`} style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}>
             Leaderboard
           </Link>
+          <Link href={`/r/${code}/history`} style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}>
+            History
+          </Link>
           <Link href={`/r/${code}/screen`} style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}>
             Big screen
           </Link>
