@@ -35,10 +35,10 @@ export const shortAddress = (a) => (a ? `${a.slice(0, 4)}..${a.slice(-2).toUpper
  * identities stay on-brand. Guidelines are explicit that purple stays dominant.
  */
 export const SQUADS = [
-  { id: 1, name: 'Hyderabad Hashers', short: 'HYH', color: '#ffae45' },
-  { id: 2, name: 'Monad Mavericks', short: 'MOM', color: '#6b2de6' },
-  { id: 3, name: 'Chennai Compilers', short: 'CHC', color: '#85e6ff' },
-  { id: 4, name: 'Bangalore Bytes', short: 'BLR', color: '#ff8ee4' },
+  { id: 1, name: 'Chennai Super Kings', short: 'CSK', color: '#f4c430', ink: '#1a1400' },
+  { id: 2, name: 'Mumbai Indians', short: 'MI', color: '#1f6bd0', ink: '#ffffff' },
+  { id: 3, name: 'Royal Challengers', short: 'RCB', color: '#d1202f', ink: '#ffffff' },
+  { id: 4, name: 'Kolkata Knight Riders', short: 'KKR', color: '#6a3fa0', ink: '#ffffff' },
 ]
 
 export const squadOf = (id) => SQUADS.find((s) => s.id === Number(id))

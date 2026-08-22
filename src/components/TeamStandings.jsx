@@ -36,7 +36,7 @@ export function TeamStandings({ squadPurses = [], leadEntity = 0, myEntity = 0, 
             }}
           >
             <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: '#9c94bd', width: 16, textAlign: 'right' }}>{r.rank}</span>
-            <span style={{ width: 26, height: 26, borderRadius: 8, background: r.color, flexShrink: 0 }} />
+            <span style={{ width: 30, height: 30, borderRadius: 8, background: r.color, color: r.ink || '#fff', flexShrink: 0, display: 'grid', placeItems: 'center', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 11 }}>{r.short}</span>
             <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 15, color: ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {r.name}
               {mine && <span style={{ color: '#6b2de6', fontWeight: 700 }}> · you</span>}

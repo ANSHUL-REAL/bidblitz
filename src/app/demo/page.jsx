@@ -9,7 +9,7 @@ import { Leaderboard } from '../../components/Leaderboard'
 import { DemoEngine } from '../../lib/demoEngine'
 import { formatAmount, MON } from '../../lib/format.mjs'
 import { IMAGE_LIBRARY } from '../../lib/lots.mjs'
-import { CATEGORIES, itemsForCategories, isCustomCat, makeCustomCat, catLabel } from '../../lib/categories.mjs'
+import { CATEGORIES, itemsForCategories, isCustomCat, makeCustomCat, catLabel, FANTASY_ITEMS } from '../../lib/categories.mjs'
 import { artFor, imageForItem, LotImage } from '../../lib/presetArt.mjs'
 
 /**
@@ -161,8 +161,8 @@ function Standings({ snap, dark = false }) {
           }}
         >
           <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: '#9c94bd', width: 16, textAlign: 'right' }}>{b.rank}</span>
-          {b.color
-            ? <span style={{ width: 26, height: 26, borderRadius: 8, background: b.color, flexShrink: 0 }} />
+          {b.short
+            ? <span style={{ width: 30, height: 30, borderRadius: 8, background: b.color, color: b.ink || '#fff', flexShrink: 0, display: 'grid', placeItems: 'center', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 11 }}>{b.short}</span>
             : <Avatar seed={b.id} size={30} ring={b.id === 'you' ? '#6b2de6' : null} />}
           <span style={{ fontWeight: 700, fontSize: 14, flex: 1, color: dark ? '#fff' : '#12121c' }}>
             {b.name}{b.id === 'you' ? ' (you)' : ''}
@@ -186,7 +186,8 @@ function HostPane({ snap, engine }) {
   const [cats, setCats] = useState(['memes'])
   const [customCat, setCustomCat] = useState('')
   const [msg, setMsg] = useState('')
-  const presets = itemsForCategories(cats)
+  const isFantasy = snap.mode === 1
+  const presets = isFantasy ? FANTASY_ITEMS.map((p) => ({ ...p, category: 'fantasy' })) : itemsForCategories(cats)
   const toggleCat = (id) => setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
   const addCustomCat = () => { const n = customCat.trim(); if (!n) return; const id = makeCustomCat(n); setCats((c) => (c.includes(id) ? c : [...c, id])); setCustomCat('') }
 
@@ -277,7 +278,9 @@ function HostPane({ snap, engine }) {
           </div>
         )}
 
-        {/* 1. pick a category */}
+        {/* 1. pick a category (auction only — fantasy has players, not categories) */}
+        {!isFantasy && (
+        <>
         <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '4px 0 8px' }}>CATEGORIES</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CATEGORIES.map((c) => {
@@ -302,11 +305,13 @@ function HostPane({ snap, engine }) {
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCat() } }} placeholder="Add your own category…" maxLength={24} />
           <button className="btn-plain" onClick={addCustomCat} disabled={!customCat.trim()} style={{ padding: '0 16px', borderRadius: 10, fontWeight: 700, border: '1.5px solid #e6e2f5', background: customCat.trim() ? '#efeafd' : '#f3f1fa', color: customCat.trim() ? '#5b28d9' : '#b7b0d4' }}>Add</button>
         </div>
+        </>
+        )}
 
-        {/* 2. quick-add items from the chosen categories */}
+        {/* 2. quick-add: category items, or the player roster in fantasy */}
         {presets.length > 0 && (
           <>
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '16px 0 8px' }}>QUICK ADD</div>
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '16px 0 8px' }}>{isFantasy ? 'PLAYERS' : 'QUICK ADD'}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {presets.map((lot) => (
                 <button key={lot.name} className="btn-plain" onClick={() => engine.queueItem(lot.name, imageForItem(lot, lot.category))} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, background: '#faf8ff', border: '1px solid #eeecf7', fontSize: 13, fontWeight: 600 }}>
@@ -318,9 +323,11 @@ function HostPane({ snap, engine }) {
           </>
         )}
 
-        {/* 3. or add your own item */}
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '18px 0 8px' }}>OR ADD YOUR OWN</div>
-        <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add anything — a meme, a name, an item…" maxLength={60} onKeyDown={(e) => e.key === 'Enter' && add()} />
+        {/* 3. or add your own item / player */}
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, letterSpacing: '.16em', color: '#9c94bd', margin: '18px 0 8px' }}>{isFantasy ? 'OR ADD YOUR OWN PLAYER' : 'OR ADD YOUR OWN'}</div>
+        <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder={isFantasy ? 'Player name…' : 'Add anything — a meme, a name, an item…'} maxLength={60} onKeyDown={(e) => e.key === 'Enter' && add()} />
+        {!isFantasy && (
+        <>
         <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
           <ImageChip active={image === ''} onClick={() => setImage('')} label="no pic" />
           {image && !IMAGE_LIBRARY.includes(image) && <ImageChip src={image} active onClick={() => {}} />}
@@ -334,6 +341,8 @@ function HostPane({ snap, engine }) {
         </div>
         <input className="field" style={{ marginTop: 8, fontSize: 14 }} value={image.startsWith('blob:') ? '' : image}
           onChange={(e) => setImage(e.target.value)} placeholder="…or paste an image URL for your meme / NFT" />
+        </>
+        )}
         <button className="btn-plain" onClick={add} disabled={!name.trim()} style={{ width: '100%', marginTop: 12, padding: 14, borderRadius: 12, background: name.trim() ? '#efeafd' : '#f3f1fa', color: name.trim() ? '#5b28d9' : '#b7b0d4', fontWeight: 700, border: '2px solid #e6e2f5' }}>
           + Add to queue
         </button>
@@ -453,8 +462,8 @@ function BidderPane({ snap, engine }) {
     <div style={{ maxWidth: 400, margin: '0 auto', display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700 }}>
-          {you.color && you.name !== 'You'
-            ? <span style={{ width: 26, height: 26, borderRadius: 8, background: you.color }} />
+          {you.short
+            ? <span style={{ width: 30, height: 30, borderRadius: 8, background: you.color, color: you.ink || '#fff', display: 'grid', placeItems: 'center', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 11 }}>{you.short}</span>
             : <Avatar seed="you" size={30} ring="#6b2de6" />}
           {you.name}
         </span>

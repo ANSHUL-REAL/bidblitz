@@ -58,11 +58,13 @@ function squadsState() {
   return {
     roomName: 'Fantasy League',
     mode: 1,
-    you: { id: 'you', name: mine.name, color: mine.color, purse: 200n * MON, spent: 0n, wins: 0, bids: 0 },
+    you: { id: 'you', name: mine.name, color: mine.color, short: mine.short, ink: mine.ink, purse: 200n * MON, spent: 0n, wins: 0, bids: 0 },
     bots: rest.map((tm, i) => ({
       id: `team${tm.id}`,
       name: tm.name,
       color: tm.color,
+      short: tm.short,
+      ink: tm.ink,
       purse: 200n * MON,
       spent: 0n,
       wins: 0,
@@ -107,7 +109,7 @@ export class DemoEngine {
       roomName: s.roomName,
       mode: s.mode,
       you: { ...s.you },
-      bidders: bidders.map((b) => ({ id: b.id, name: b.name, color: b.color, purse: b.purse, spent: b.spent, wins: b.wins, bids: b.bids })),
+      bidders: bidders.map((b) => ({ id: b.id, name: b.name, color: b.color, short: b.short, ink: b.ink, purse: b.purse, spent: b.spent, wins: b.wins, bids: b.bids })),
       queue: s.queue.map((q) => ({ ...q })),
       lots: s.lots.map((l) => ({ ...l })),
       openLot: openLot ? { ...openLot } : null,
