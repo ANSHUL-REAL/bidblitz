@@ -297,6 +297,19 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [],
+    "name": "CONTRIBUTION_MULTIPLIER",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "MAX_DURATION",
     "outputs": [
       {

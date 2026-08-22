@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { BidBlitzLogo, MonadLockup, MonadMark, Bolt } from '../../components/Logo'
 import { useAuction, useCountdown } from '../../lib/useAuction'
-import { formatCrore, SQUADS, squadOf, entityLabel, shortAddress } from '../../lib/format.mjs'
+import { formatMon, SQUADS, squadOf, entityLabel, shortAddress } from '../../lib/format.mjs'
 import { EXPLORER } from '../../lib/chain.mjs'
 import { unlock, dingBid, gavel, fanfareStart, tick } from '../../lib/sound.mjs'
 import { RaceTrack, racersFromState } from '../../components/RaceTrack'
@@ -181,7 +181,7 @@ function LotStage({ state, highest, remaining, live, sold }) {
             textTransform: 'none', lineHeight: 1, transition: 'color .25s ease',
           }}
         >
-          {formatCrore(highest)}
+          {formatMon(highest)}
         </div>
 
         <div style={{ fontSize: 27, color: 'var(--ink-2)', marginTop: 10, minHeight: 36 }}>
@@ -315,7 +315,7 @@ function PurseStrip({ state }) {
               {leading && <Bolt size={13} color={squad.color} />}
             </div>
             <div className="display" style={{ fontSize: 34, marginTop: 4, textTransform: 'none', color: squad.color }}>
-              {formatCrore(purse)}
+              {formatMon(purse)}
             </div>
           </div>
         )
@@ -397,7 +397,7 @@ function SoldTakeover({ state, highest }) {
             <div style={{ fontSize: 'clamp(24px,2.6vw,38px)', marginTop: 14, color: '#fff' }}>
               to <strong>{entityLabel(state.leadEntity)}</strong> for{' '}
               <span className="display" style={{ fontSize: '1.5em', textTransform: 'none' }}>
-                {formatCrore(highest)}
+                {formatMon(highest)}
               </span>
             </div>
             <div className="mono" style={{ marginTop: 20, fontSize: 19, color: 'rgba(255,255,255,.75)' }}>

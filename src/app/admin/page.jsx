@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { BidBlitzLogo } from '../../components/Logo'
 import { useAuction, useCountdown } from '../../lib/useAuction'
-import { formatCrore, entityLabel } from '../../lib/format.mjs'
+import { formatMon, entityLabel } from '../../lib/format.mjs'
 import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '../../lib/lots.mjs'
 
 const SECRET_KEY = 'bidblitz:admin'
@@ -128,7 +128,7 @@ function Console({ secret }) {
               <div className="display" style={{ fontSize: 26, margin: '6px 0' }}>{state.lname}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <div className="display" style={{ fontSize: 34, color: 'var(--monad-purple)', textTransform: 'none' }}>
-                  {formatCrore(highest)}
+                  {formatMon(highest)}
                 </div>
                 <div className="display" style={{ fontSize: 26, color: remaining <= 5 ? 'var(--live)' : 'var(--ink)', textTransform: 'none' }}>
                   {remaining.toFixed(1)}s

@@ -30,8 +30,17 @@ contract BidBlitz {
     address public immutable organizer;
 
     uint16  public constant SQUAD_COUNT = 4;
-    uint128 public constant SQUAD_START = 0.2 ether;
-    uint128 public constant SOLO_START  = 0.05 ether;
+
+    /// Purses are accounting units, not custody — no MON moves on settlement —
+    /// so they are denominated to read well on the big screen (bids land around
+    /// "12.34 MON" like the design, not "0.001"). Only gas is ever real MON.
+    uint128 public constant SQUAD_START = 200 ether;
+    uint128 public constant SOLO_START  = 50 ether;
+
+    /// Real MON sent to contribute() is scaled into that same accounting space,
+    /// so a tiny 0.01 MON top-up visibly moves the purse on screen.
+    uint256 public constant CONTRIBUTION_MULTIPLIER = 1000;
+
     uint40  public constant ANTISNIPE   = 3;
     uint40  public constant MAX_DURATION = 300;
 
@@ -110,7 +119,7 @@ contract BidBlitz {
         if (entityId == 0 || entityId > entityCount) revert BadEntity();
         if (msg.value == 0 || msg.value > 1_000 ether) revert BadAmount();
         Entity storage e = entities[entityId];
-        e.purse += uint128(msg.value);
+        e.purse += uint128(msg.value * CONTRIBUTION_MULTIPLIER);
         emit Contributed(msg.sender, entityId, msg.value, e.purse);
     }
 
