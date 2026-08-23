@@ -225,6 +225,11 @@ end $$;
  * is not a player, so the rooms someone actually RAN never appeared in their
  * own history.
  */
+-- The 007 version returned the same (uuid, int) signature with a different row
+-- shape, and CREATE OR REPLACE cannot change OUT parameters. Drop it first or
+-- Postgres refuses the whole file with 42P13.
+drop function if exists public.free_history(uuid, int);
+
 create or replace function public.free_history(p_user uuid, p_limit int default 50)
 returns table (
   code text, title text, played_at timestamptz, closed boolean,
