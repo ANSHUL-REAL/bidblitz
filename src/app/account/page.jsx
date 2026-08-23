@@ -88,7 +88,7 @@ function AuthForms() {
           {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
         </button>
       </form>
-      {msg && <p style={{ marginTop: 12, fontSize: 13.5, color: '#12703a', lineHeight: 1.5 }}>{msg}</p>}
+      {msg && <p style={{ marginTop: 12, fontSize: 13.5, color: '#5b28d9', lineHeight: 1.5 }}>{msg}</p>}
       {err && <p style={{ marginTop: 12, fontSize: 13.5, color: '#c0392b' }}>{err}</p>}
       <p style={{ marginTop: 14, fontSize: 12.5, color: '#9c94bd', lineHeight: 1.5 }}>
         Only the host signs in. People who join your events never need an account — they scan the QR and bid.
@@ -145,7 +145,7 @@ function FreeHistory() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
         <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20 }}>Your history</span>
         <span style={{ fontSize: 13.5, color: '#6b6d78' }}>
-          {totals.rooms} room{totals.rooms === 1 ? '' : 's'} · <strong style={{ color: '#12703a' }}>{totals.wins} won</strong> · {formatAmount(totals.spent)} PTS spent
+          {totals.rooms} room{totals.rooms === 1 ? '' : 's'} · <strong style={{ color: '#5b28d9' }}>{totals.wins} won</strong> · {formatAmount(totals.spent)} PTS spent
         </span>
       </div>
 
@@ -155,14 +155,14 @@ function FreeHistory() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12.5, fontWeight: 700, color: '#6b2de6', letterSpacing: '.1em' }}>{h.code}</span>
               <span style={{ fontWeight: 800, fontSize: 15 }}>{h.title}</span>
-              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#12703a', background: '#e9f9ef', padding: '2px 7px', borderRadius: 999 }}>FREE</span>
+              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#5b28d9', background: '#efeafd', padding: '2px 7px', borderRadius: 999 }}>FREE</span>
               {!h.closed && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#5b28d9', background: '#efeafd', padding: '2px 7px', borderRadius: 999 }}>LIVE</span>}
               <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#9c94bd' }}>
                 {new Date(h.playedAt).toLocaleDateString()}
               </span>
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: '#6b6d78', flexWrap: 'wrap' }}>
-              <span><strong style={{ color: h.wins ? '#12703a' : '#12121c' }}>{h.wins}</strong> won</span>
+              <span><strong style={{ color: h.wins ? '#5b28d9' : '#12121c' }}>{h.wins}</strong> won</span>
               <span><strong style={{ color: '#12121c' }}>{formatAmount(h.spent)}</strong> spent</span>
               <span>{h.players} player{h.players === 1 ? '' : 's'} · {h.lots} lot{h.lots === 1 ? '' : 's'}</span>
               {!h.closed && (

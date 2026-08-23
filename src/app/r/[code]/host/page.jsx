@@ -176,7 +176,7 @@ function Console({ code, roomId, state, refetch, signer }) {
         {lowGas != null && <LowGasBanner balance={lowGas} address={signer.address} />}
 
         {/* Real-MON proceeds to collect (escrow rooms only; hidden otherwise). */}
-        <WithdrawPanel signer={signer} label="Auction proceeds" claimLabel="Collect to wallet" accent="#12703a" />
+        <WithdrawPanel signer={signer} label="Auction proceeds" claimLabel="Collect to wallet" accent="#5b28d9" />
 
         {/* Real-MON: who owes what, and the remedy if they never pay. */}
         <SettlePanel state={state} signer={signer} roomId={roomId} isHost onDone={refetch} />
@@ -272,7 +272,7 @@ function Console({ code, roomId, state, refetch, signer }) {
             style={{
               margin: '12px 0 0', padding: '10px 14px', borderRadius: 10, fontSize: 14,
               fontWeight: 600, textAlign: 'center', wordBreak: 'break-word',
-              background: msg.ok ? '#e9f9ef' : '#fdecea', color: msg.ok ? '#12703a' : '#c0392b',
+              background: msg.ok ? '#efeafd' : '#fdecea', color: msg.ok ? '#5b28d9' : '#c0392b',
             }}
           >
             {msg.text}

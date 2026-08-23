@@ -51,8 +51,8 @@ export function SettlePanel({ state, signer, roomId, isHost, onDone }) {
     }
   }
 
-  const accent = expired ? '#c0392b' : iAmWinner ? '#12703a' : '#8a5a00'
-  const tint = expired ? '#fdecea' : iAmWinner ? '#e9f9ef' : '#fff8ec'
+  const accent = expired ? '#c0392b' : iAmWinner ? '#5b28d9' : '#8a5a00'
+  const tint = expired ? '#fdecea' : iAmWinner ? '#efeafd' : '#fff8ec'
 
   return (
     <div
@@ -89,9 +89,9 @@ export function SettlePanel({ state, signer, roomId, isHost, onDone }) {
               onClick={() => act(() => signer.payLot(roomId, state.lotId, owed), 'Paid — it’s yours')}
               style={{
                 width: '100%', marginTop: 14, padding: '18px 0', borderRadius: 14,
-                background: '#12703a', color: '#fff', fontFamily: "'Archivo',sans-serif",
+                background: '#5b28d9', color: '#fff', fontFamily: "'Archivo',sans-serif",
                 fontWeight: 900, fontSize: 19, letterSpacing: '.05em',
-                boxShadow: '0 12px 28px rgba(18,112,58,.28)', opacity: busy ? .6 : 1,
+                boxShadow: '0 12px 28px rgba(107,45,230,.28)', opacity: busy ? .6 : 1,
               }}
             >
               PAY {formatAmount(owed)} MON
@@ -131,7 +131,7 @@ export function SettlePanel({ state, signer, roomId, isHost, onDone }) {
       )}
 
       {flash && (
-        <p style={{ margin: '12px 0 0', fontSize: 13.5, fontWeight: 700, color: flash.ok ? '#12703a' : '#c0392b', wordBreak: 'break-word' }}>
+        <p style={{ margin: '12px 0 0', fontSize: 13.5, fontWeight: 700, color: flash.ok ? '#5b28d9' : '#c0392b', wordBreak: 'break-word' }}>
           {flash.text}
           {flash.hash && (
             <>

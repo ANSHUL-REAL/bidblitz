@@ -257,6 +257,12 @@ export function racersFromState(state, { myAddress, participants } = {}) {
   })
   if (live.length) return live
 
+  // Between lots a FANTASY room races its four squads on remaining purse, which
+  // keeps the hero alive instead of showing a dead grid. Every other room has
+  // no squads at all — falling back to them there put CSK and MI on the track
+  // of a meme auction that never mentioned cricket.
+  if (Number(state?.mode) !== 1) return []
+
   return SQUADS.map((sq, i) => ({
     key: `squad-${sq.id}`,
     label: sq.short,

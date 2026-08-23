@@ -164,7 +164,7 @@ function Console({ code, state, host, refetch }) {
       </div>
 
       {msg && (
-        <p style={{ ...TOAST, background: msg.ok ? '#e9f9ef' : '#fdecea', color: msg.ok ? '#12703a' : '#c0392b' }}>
+        <p style={{ ...TOAST, background: msg.ok ? '#efeafd' : '#fdecea', color: msg.ok ? '#5b28d9' : '#c0392b' }}>
           {msg.text}
         </p>
       )}
@@ -181,7 +181,10 @@ function Console({ code, state, host, refetch }) {
 
       <style>{`
         @media (min-width: 900px) {
-          .stage { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) !important; }
+          .stage {
+            grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) !important;
+            grid-template-rows: minmax(0,1fr) !important;
+          }
         }
       `}</style>
     </main>
@@ -192,9 +195,14 @@ const SHELL = {
   height: '100dvh', overflow: 'hidden', background: '#f1f0f9',
   display: 'flex', flexDirection: 'column',
 }
+// Stacked on a phone, the two panels have to SHARE the leftover height —
+// auto rows sized them to their content and left the bottom third of the
+// screen blank. minmax(0,1fr) lets each shrink and scroll internally instead.
 const STAGE = {
   flex: 1, minHeight: 0, width: '100%', maxWidth: 1080, margin: '0 auto',
-  padding: 10, display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0,1fr)',
+  padding: 10, display: 'grid', gap: 10,
+  gridTemplateColumns: 'minmax(0,1fr)',
+  gridTemplateRows: 'minmax(0,1.15fr) minmax(0,1fr)',
 }
 const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(30,20,70,.07)' }
 const PANEL = { ...CARD, padding: 13, display: 'flex', flexDirection: 'column', minHeight: 0 }
@@ -262,7 +270,7 @@ function SetupCard({ count, busy, duration, setDuration, onStart }) {
 function SoldCard({ state, highest, leaderName, nextItem, busy, onContinue, onEnd }) {
   const nobody = highest === 0n || !leaderName
   return (
-    <section style={{ ...CARD, padding: 16, flexShrink: 0, border: `2px solid ${nobody ? '#eeecf7' : '#bfe8cf'}` }}>
+    <section style={{ ...CARD, padding: 16, flexShrink: 0, border: `2px solid ${nobody ? '#eeecf7' : '#ddd0fa'}` }}>
       <div style={LABEL}>LOT #{state.lotId} · {nobody ? 'UNSOLD' : 'SOLD'}</div>
 
       {nobody ? (
@@ -274,7 +282,7 @@ function SoldCard({ state, highest, leaderName, nextItem, busy, onContinue, onEn
           <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: '-.03em', marginTop: 5, lineHeight: 1.15 }}>
             {state.lname}
           </div>
-          <div style={{ fontSize: 15, marginTop: 4, color: '#12703a', fontWeight: 700 }}>
+          <div style={{ fontSize: 15, marginTop: 4, color: '#5b28d9', fontWeight: 700 }}>
             🎉 Sold to {leaderName} for {formatAmount(highest)} PTS
           </div>
         </>
@@ -540,7 +548,7 @@ function FinalResults({ results, players }) {
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: '-.03em', marginTop: 8 }}>
               {champ.name || entityLabel(champ.entityId)}
             </div>
-            <div style={{ fontSize: 14.5, color: '#12703a', fontWeight: 700 }}>
+            <div style={{ fontSize: 14.5, color: '#5b28d9', fontWeight: 700 }}>
               top bidder · {champ.wins} lot{champ.wins === 1 ? '' : 's'}
             </div>
           </>
@@ -564,7 +572,7 @@ function FinalResults({ results, players }) {
                 <span style={{ fontSize: 12.5, color: '#6b6d78', whiteSpace: 'nowrap' }}>
                   → <strong style={{ color: '#12121c' }}>{r.winnerName || shortAddress(r.winner)}</strong>
                 </span>
-                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 14, color: '#12703a' }}>
+                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 14, color: '#5b28d9' }}>
                   {formatAmount(r.amount)}
                 </span>
               </div>
@@ -622,7 +630,7 @@ function Leaderboard({ players, leadAddr, busy, onKick }) {
                   </div>
                   <div style={{ fontSize: 10.5, color: '#6b6d78' }}>{formatAmount(p.purse)} left</div>
                 </div>
-                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 15, color: p.wins ? '#12703a' : '#c9c3dd', minWidth: 16, textAlign: 'right' }}>
+                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 15, color: p.wins ? '#5b28d9' : '#c9c3dd', minWidth: 16, textAlign: 'right' }}>
                   {p.wins}
                 </span>
                 {asking ? (
@@ -747,36 +755,37 @@ function Header({ code, state, closed, onEnd, onMirror }) {
       <Link href={`/f/${code}`} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <BidBlitzMark size={26} />
         <span style={{ minWidth: 0 }}>
-          <span style={{ display: 'block', fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 16, color: '#12121c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 190 }}>
+          <span style={{ display: 'block', fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 14.5, color: '#12121c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 130 }}>
             {state?.rname || 'Room'}
           </span>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#6b2de6', letterSpacing: '.14em' }}>
+          {/* Never truncated: this is the number the room is typing in. */}
+          <span style={{ display: 'block', fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 700, color: '#6b2de6', letterSpacing: '.16em', whiteSpace: 'nowrap' }}>
             {code}{closed ? ' · ENDED' : ''}
           </span>
         </span>
       </Link>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexShrink: 0, flexWrap: 'nowrap' }}>
         {onMirror && (
           <button
-            className="btn-plain" onClick={onMirror}
-            style={{ padding: '7px 11px', borderRadius: 9, border: '1.5px solid #e6e2f5', background: '#fff', color: '#5b28d9', fontWeight: 800, fontSize: 12.5 }}
+            className="btn-plain" onClick={onMirror} title="Watch the big screen"
+            style={{ padding: '7px 10px', borderRadius: 9, border: '1.5px solid #e6e2f5', background: '#fff', color: '#5b28d9', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap' }}
           >
-            Watch screen
+            Watch
           </button>
         )}
         {/* New tab, not a navigation: a host who taps this mid-lot must not
             lose the console they are running the auction from. */}
         <a
           href={`/f/${code}/history`} target="_blank" rel="noreferrer"
-          style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}
+          style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78', whiteSpace: 'nowrap' }}
         >
-          History ↗
+          Log
         </a>
         <a
           href={`/f/${code}/screen`} target="_blank" rel="noreferrer"
-          style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}
+          style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78', whiteSpace: 'nowrap' }}
         >
-          Screen ↗
+          Screen
         </a>
         {onEnd && (
           <button
@@ -838,9 +847,9 @@ function LiveLot({ state, remaining, urgent, highest, leaderName, busy, run, hos
             className="btn-plain" disabled={busy}
             onClick={() => run(() => host.sellLot(state.lotId), null)}
             style={{
-              flex: 2, padding: '16px 0', borderRadius: 13, background: '#12703a', color: '#fff',
+              flex: 2, padding: '16px 0', borderRadius: 13, background: '#5b28d9', color: '#fff',
               fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 19, letterSpacing: '.08em',
-              boxShadow: '0 10px 22px rgba(18,112,58,.26)', opacity: busy ? .6 : 1,
+              boxShadow: '0 10px 22px rgba(107,45,230,.26)', opacity: busy ? .6 : 1,
             }}
           >
             SELL
@@ -896,8 +905,8 @@ function BidLedger({ bids, highest }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
                   padding: '7px 8px', borderRadius: 9,
-                  background: top ? '#e9f9ef' : '#fbfaff',
-                  border: `1px solid ${top ? '#bfe8cf' : '#f0edfa'}`,
+                  background: top ? '#efeafd' : '#fbfaff',
+                  border: `1px solid ${top ? '#ddd0fa' : '#f0edfa'}`,
                 }}
               >
                 <Avatar seed={b.bidder} size={22} />
@@ -909,7 +918,7 @@ function BidLedger({ bids, highest }) {
                     OPENING
                   </span>
                 )}
-                <span style={{ marginLeft: 'auto', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 14, color: top ? '#12703a' : '#12121c' }}>
+                <span style={{ marginLeft: 'auto', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 14, color: top ? '#5b28d9' : '#12121c' }}>
                   {formatAmount(b.amount)}
                 </span>
               </div>

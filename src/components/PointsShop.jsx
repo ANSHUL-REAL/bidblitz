@@ -110,7 +110,7 @@ export function PointsShop({ code, playerId, onCredited }) {
                     <span
                       style={{
                         position: 'absolute', top: -9, right: 10, fontSize: 10, fontWeight: 800,
-                        letterSpacing: '.08em', color: '#12703a', background: '#d8f5e5',
+                        letterSpacing: '.08em', color: '#5b28d9', background: '#e5dcfb',
                         padding: '3px 7px', borderRadius: 999,
                       }}
                     >
@@ -134,7 +134,7 @@ export function PointsShop({ code, playerId, onCredited }) {
           )}
 
           {done && (
-            <p style={{ margin: '14px 0 0', padding: '11px 13px', borderRadius: 10, background: '#e9f9ef', color: '#12703a', fontSize: 14, fontWeight: 700 }}>
+            <p style={{ margin: '14px 0 0', padding: '11px 13px', borderRadius: 10, background: '#efeafd', color: '#5b28d9', fontSize: 14, fontWeight: 700 }}>
               {done.alreadyCredited ? 'Already credited' : `+${formatAmount(done.points)} PTS added to your purse`}
             </p>
           )}

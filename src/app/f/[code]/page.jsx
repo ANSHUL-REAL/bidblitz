@@ -37,6 +37,12 @@ export default function FreeRoom({ params }) {
 
   const closed = Boolean(state?.closed)
 
+  // The roster carries real names; "Bidder #6 leading" is a worse label than
+  // "Ananya leading", and the bid bar was showing the paddle number.
+  const leaderName = state?.bidder
+    ? state.players?.find((p) => p.addr === state.bidder)?.name || null
+    : null
+
   // A player the host removed vanishes from the roster while their browser
   // still believes it is in the room. Detect it from the roster rather than
   // waiting for their next bid to be refused.
@@ -72,7 +78,7 @@ export default function FreeRoom({ params }) {
       {joined && !closed && !removed && (
         <BidBar
           state={state} signer={signer} me={me} roomId={code}
-          refreshMe={() => {}} unit="PTS"
+          refreshMe={() => {}} unit="PTS" leaderName={leaderName}
         />
       )}
     </main>
@@ -103,7 +109,7 @@ function Ended({ state, myAddr }) {
             >
               {champ.addr === myAddr ? 'You won it' : champ.name || entityLabel(champ.entityId)}
             </h1>
-            <p style={{ margin: '6px 0 0', fontSize: 16, color: '#12703a', fontWeight: 700 }}>
+            <p style={{ margin: '6px 0 0', fontSize: 16, color: '#5b28d9', fontWeight: 700 }}>
               {champ.wins} lot{champ.wins === 1 ? '' : 's'} won
             </p>
           </>
@@ -131,7 +137,7 @@ function Ended({ state, myAddr }) {
               <span style={{ marginLeft: 'auto', fontSize: 13, color: '#6b6d78' }}>
                 {formatAmount(p.spent)} spent
               </span>
-              <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 17, color: p.wins ? '#12703a' : '#c9c3dd', minWidth: 26, textAlign: 'right' }}>
+              <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 17, color: p.wins ? '#5b28d9' : '#c9c3dd', minWidth: 26, textAlign: 'right' }}>
                 {p.wins}
               </span>
             </div>
@@ -173,8 +179,9 @@ function RoomHeader({ state, code, session }) {
     <header style={{ background: '#fff', boxShadow: '0 1px 0 rgba(18,18,28,.06)', position: 'sticky', top: 0, zIndex: 30 }}>
       <div
         style={{
-          maxWidth: 1100, margin: '0 auto', padding: '14px 20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+          maxWidth: 1100, margin: '0 auto', padding: '10px 14px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 10, flexWrap: 'nowrap',
         }}
       >
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -183,14 +190,16 @@ function RoomHeader({ state, code, session }) {
             <span
               style={{
                 display: 'block', fontFamily: "'Archivo', sans-serif", fontWeight: 800,
-                fontSize: 17, letterSpacing: '-.02em', color: '#12121c',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220,
+                fontSize: 15, letterSpacing: '-.02em', color: '#12121c',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160,
               }}
             >
               {state?.rname || 'BidBlitz'}
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#6b2de6', letterSpacing: '.12em' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* flexShrink 0: the code is what the room types in, so the title
+                  gives way before this ever does. */}
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12.5, color: '#6b2de6', letterSpacing: '.14em', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {code}
               </span>
               <FreeBadge />
@@ -198,35 +207,37 @@ function RoomHeader({ state, code, session }) {
           </span>
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* nowrap + shrink-to-0: these compress and scroll rather than wrapping
+            the header onto a second line and crushing the identity block. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', minWidth: 0, overflowX: 'auto' }}>
           {session.isHost && (
             <Link
               href={`/f/${code}/host`}
-              style={{ background: '#12121c', color: '#fff', padding: '10px 16px', borderRadius: 10, fontWeight: 700, fontSize: 14 }}
+              style={{ background: '#12121c', color: '#fff', padding: '8px 12px', borderRadius: 9, fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}
             >
-              Host controls
+              Host
             </Link>
           )}
           <a
             href={`/f/${code}/history`} target="_blank" rel="noreferrer"
-            style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}
+            style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78', whiteSpace: 'nowrap', flexShrink: 0 }}
           >
-            History ↗
+            History
           </a>
           <a
             href={`/f/${code}/screen`} target="_blank" rel="noreferrer"
-            style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}
+            style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78', whiteSpace: 'nowrap', flexShrink: 0 }}
           >
-            Screen ↗
+            Screen
           </a>
           {session.player && (
             <button
               className="btn-plain"
               onClick={session.leave}
               style={{
-                background: '#ebe6fb', color: '#5b28d9', padding: '10px 14px',
-                borderRadius: 10, fontWeight: 700, fontSize: 14,
-                maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                background: '#ebe6fb', color: '#5b28d9', padding: '8px 11px',
+                borderRadius: 9, fontWeight: 700, fontSize: 13, flexShrink: 0,
+                maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}
             >
               {session.player.name || 'You'}
@@ -243,7 +254,7 @@ function FreeBadge({ small = false }) {
     <span
       style={{
         fontSize: small ? 9 : 10, fontWeight: 800, letterSpacing: '.12em',
-        color: '#12703a', background: '#e9f9ef', padding: '2px 7px', borderRadius: 999,
+        color: '#5b28d9', background: '#efeafd', padding: '2px 7px', borderRadius: 999,
       }}
     >
       FREE
@@ -338,9 +349,9 @@ function FreeJoinCard({ session, roomName }) {
           style={{
             width: '100%', marginTop: 20,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 14,
-            background: '#12703a', color: '#fff', padding: '20px 26px', borderRadius: 14,
+            background: '#5b28d9', color: '#fff', padding: '20px 26px', borderRadius: 14,
             fontWeight: 700, fontSize: 18, letterSpacing: '.05em',
-            boxShadow: '0 18px 40px rgba(18,112,58,.28)', opacity: busy ? .7 : 1,
+            boxShadow: '0 18px 40px rgba(107,45,230,.28)', opacity: busy ? .7 : 1,
           }}
         >
           {busy ? session.status : <>JOIN FOR FREE <span style={{ fontSize: 20 }}>&#8594;</span></>}
@@ -350,7 +361,7 @@ function FreeJoinCard({ session, roomName }) {
             room is still in your history tomorrow — it changes no rule of the
             game, and the join button above works either way. */}
         {user ? (
-          <p style={{ margin: '14px 0 0', padding: '10px 12px', borderRadius: 10, background: '#e9f9ef', color: '#12703a', fontSize: 12.5, fontWeight: 700, textAlign: 'center' }}>
+          <p style={{ margin: '14px 0 0', padding: '10px 12px', borderRadius: 10, background: '#efeafd', color: '#5b28d9', fontSize: 12.5, fontWeight: 700, textAlign: 'center' }}>
             ✓ Signed in — this room will be saved to your history
           </p>
         ) : (
@@ -492,7 +503,7 @@ function LiveRoom({ state, signer, me }) {
           </div>
           <div style={{ fontSize: 16, color: '#2a2a3a', marginTop: 6 }}>
             {sold && leaderName ? (
-              <span style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, background: '#e9f9ef', color: '#12703a', fontWeight: 800 }}>
+              <span style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, background: '#efeafd', color: '#5b28d9', fontWeight: 800 }}>
                 🎉 {state.lname} sold to {leaderName}
               </span>
             ) : highest === 0n ? 'No bids yet — open it' : `${leaderName} leading`}

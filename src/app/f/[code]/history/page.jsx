@@ -83,7 +83,7 @@ export default function FreeHistory({ params }) {
                   {p.name || shortAddress(p.addr)}
                 </span>
                 <span style={{ fontSize: 12.5, color: '#6b6d78' }}>{formatAmount(p.spent)} spent</span>
-                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 16, color: p.wins ? '#12703a' : '#c9c3dd', minWidth: 20, textAlign: 'right' }}>
+                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 16, color: p.wins ? '#5b28d9' : '#c9c3dd', minWidth: 20, textAlign: 'right' }}>
                   {p.wins}
                 </span>
               </div>
@@ -121,7 +121,7 @@ export default function FreeHistory({ params }) {
                       <span style={{ fontSize: 12.5, color: '#6b6d78', whiteSpace: 'nowrap' }}>
                         → <strong style={{ color: '#12121c' }}>{l.winner.name || shortAddress(l.winner.addr)}</strong>
                       </span>
-                      <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 15, color: '#12703a' }}>
+                      <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 15, color: '#5b28d9' }}>
                         {formatAmount(l.amount)}
                       </span>
                     </>

@@ -236,7 +236,7 @@ function HostOrJoin() {
             bidding in seconds.
           </p>
           <p style={{ margin: '10px auto 0', fontSize: 16, lineHeight: 1.5, color: '#6b6d78', maxWidth: '52ch' }}>
-            Two ways to run it: <strong style={{ color: '#12703a' }}>Free</strong> costs nobody
+            Two ways to run it: <strong style={{ color: '#5b28d9' }}>Free</strong> costs nobody
             anything and needs no wallet. <strong style={{ color: '#6b2de6' }}>MON</strong> puts
             every bid on-chain, where everyone spends their own.
           </p>
@@ -248,8 +248,8 @@ function HostOrJoin() {
           <Link
             href="/host?chain=free&kind=auction"
             style={{
-              textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#12703a', color: '#fff',
-              boxShadow: '0 18px 40px rgba(18,112,58,.28)', display: 'block',
+              textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#5b28d9', color: '#fff',
+              boxShadow: '0 18px 40px rgba(107,45,230,.28)', display: 'block',
             }}
           >
             <div style={{ fontSize: 30 }}>🎉</div>

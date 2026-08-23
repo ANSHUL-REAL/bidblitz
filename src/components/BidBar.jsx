@@ -16,7 +16,10 @@ import { txUrl } from '../lib/chain.mjs'
  * reuse this whole component; their points are not a currency and must not be
  * labelled like one.
  */
-export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
+export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON', leaderName = null }) {
+  // Prefer whatever the caller knows the leader is called. Falls back to the
+  // paddle number, which is all an on-chain room has without a roster lookup.
+  const leadLabel = leaderName || entityLabel(state?.leadEntity, state?.mode)
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const open = Number(state?.openLotId || 0) !== 0
   const live = open && remaining > 0
@@ -119,7 +122,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
     }
   }
 
-  const statusColor = sold ? '#12121c' : leading ? '#12703a' : urgent ? '#ff4d4d' : '#6b2de6'
+  const statusColor = sold ? '#12121c' : leading ? '#5b28d9' : urgent ? '#ff4d4d' : '#6b2de6'
 
   return (
     <>
@@ -194,20 +197,20 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7,
                 padding: '7px 12px', borderRadius: 999, minWidth: 0,
-                background: sold ? '#f3f1fa' : leading ? '#e9f9ef' : highest === 0n ? '#f3f1fa' : '#fff1f1',
-                color: sold ? '#12121c' : leading ? '#12703a' : highest === 0n ? '#6b6d78' : '#c0392b',
+                background: sold ? '#f3f1fa' : leading ? '#efeafd' : highest === 0n ? '#f3f1fa' : '#fff1f1',
+                color: sold ? '#12121c' : leading ? '#5b28d9' : highest === 0n ? '#6b6d78' : '#c0392b',
                 fontWeight: 800, fontSize: 13.5,
               }}
             >
               <span style={{ width: 8, height: 8, borderRadius: 2, transform: 'rotate(45deg)', background: paddleColor, flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {sold
-                  ? leading ? 'You won it' : `${entityLabel(state.leadEntity, state?.mode)} won`
+                  ? leading ? 'You won it' : `${leadLabel} won`
                   : highest === 0n
                     ? 'No bids yet — open it'
                     : leading
                       ? "You're winning"
-                      : `${entityLabel(state.leadEntity, state?.mode)} leading`}
+                      : `${leadLabel} leading`}
               </span>
             </span>
 
@@ -282,11 +285,11 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
               background:
                 flash.kind === 'error' ? '#fdecea'
                 : flash.kind === 'outbid' ? '#fff1f1'
-                : flash.kind === 'stale' ? '#fff6e5' : '#e9f9ef',
+                : flash.kind === 'stale' ? '#fff6e5' : '#efeafd',
               color:
                 flash.kind === 'error' ? '#c0392b'
                 : flash.kind === 'outbid' ? '#c0392b'
-                : flash.kind === 'stale' ? '#8a5a00' : '#12703a',
+                : flash.kind === 'stale' ? '#8a5a00' : '#5b28d9',
             }}
           >
             {flash.text}

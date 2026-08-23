@@ -12,7 +12,7 @@ import { txUrl } from '../lib/chain.mjs'
  *   - bidder room:  claim a refund after being outbid ("Refund available")
  * The withdraw() tx hash is shown as on-chain proof the MON reached the wallet.
  */
-export function WithdrawPanel({ signer, label = 'Available to withdraw', claimLabel = 'Withdraw', accent = '#12703a' }) {
+export function WithdrawPanel({ signer, label = 'Available to withdraw', claimLabel = 'Withdraw', accent = '#5b28d9' }) {
   const [amt, setAmt] = useState(0n)
   const [busy, setBusy] = useState(false)
   const [hash, setHash] = useState(null)

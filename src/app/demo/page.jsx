@@ -520,10 +520,10 @@ function BidderPane({ snap, engine }) {
           <>
             {open.image && <LotImage src={open.image} name={open.name} style={{ width: 96, height: 96, borderRadius: 14, objectFit: 'cover' }} />}
             <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 24, textTransform: 'uppercase', margin: '8px 0 0' }}>{open.name}</div>
-            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 46, color: leading ? '#12703a' : '#6b2de6', lineHeight: 1.1 }}>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 46, color: leading ? '#5b28d9' : '#6b2de6', lineHeight: 1.1 }}>
               {formatAmount(highest)}<span style={{ fontSize: 14, marginLeft: 4 }}>MON</span>
             </div>
-            <div style={{ fontSize: 14, color: leading ? '#12703a' : '#6b6d78', fontWeight: leading ? 700 : 400 }}>
+            <div style={{ fontSize: 14, color: leading ? '#5b28d9' : '#6b6d78', fontWeight: leading ? 700 : 400 }}>
               {open.status === 'sold' ? (leading ? 'You won it! 🎉' : 'Sold') : live ? (leading ? "You're winning" : open.leadId ? `${engine.nameFor(open.leadId)} leading` : 'No bids yet') : 'Lot closed'}
             </div>
             {live && <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 22, color: remaining <= 5 ? '#ff4d4d' : '#12121c', marginTop: 6 }}>{remaining.toFixed(1)}s</div>}
@@ -546,7 +546,7 @@ function BidderPane({ snap, engine }) {
         })}
       </div>
 
-      {flash && <div style={{ padding: '9px 12px', borderRadius: 10, fontSize: 14, fontWeight: 600, textAlign: 'center', background: flash.includes('sent') ? '#e9f9ef' : '#fff6e5', color: flash.includes('sent') ? '#12703a' : '#8a5a00' }}>{flash}</div>}
+      {flash && <div style={{ padding: '9px 12px', borderRadius: 10, fontSize: 14, fontWeight: 600, textAlign: 'center', background: flash.includes('sent') ? '#efeafd' : '#fff6e5', color: flash.includes('sent') ? '#5b28d9' : '#8a5a00' }}>{flash}</div>}
 
       <p style={{ textAlign: 'center', fontSize: 13, color: '#9c94bd' }}>
         You're bidding against 6 bots. Switch to <strong>Host manager</strong> to run the auction, or <strong>Big screen</strong> to see the room view.

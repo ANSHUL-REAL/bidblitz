@@ -244,7 +244,7 @@ function CreateTab({ session, router }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {[
-          ['free', 'Free · for fun', '#12703a', 'No wallet, no MON, no gas — for anyone. Bids are points. Nothing is on-chain.'],
+          ['free', 'Free · for fun', '#5b28d9', 'No wallet, no MON, no gas — for anyone. Bids are points. Nothing is on-chain.'],
           ['mon', 'MON · on-chain', '#6b2de6', 'Every bid is a Monad transaction. Everyone bids with their own MON and pays their own gas.'],
         ].map(([k, label, color, blurb]) => {
           const active = chain === k
@@ -367,10 +367,10 @@ function CreateTab({ session, router }) {
           disabled={creating}
           style={{
             width: '100%', marginTop: 18, padding: 22, borderRadius: 16,
-            background: creating ? '#ddd7f5' : isFree ? '#12703a' : '#6b2de6',
+            background: creating ? '#ddd7f5' : isFree ? '#5b28d9' : '#6b2de6',
             color: creating ? '#9c94bd' : '#fff',
             fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '.05em', textTransform: 'uppercase',
-            boxShadow: creating ? 'none' : `0 18px 40px ${isFree ? 'rgba(18,112,58,.28)' : 'rgba(107,45,230,.3)'}`,
+            boxShadow: creating ? 'none' : `0 18px 40px ${isFree ? 'rgba(107,45,230,.28)' : 'rgba(107,45,230,.3)'}`,
           }}
         >
           {creating

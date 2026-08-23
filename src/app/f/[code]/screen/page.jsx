@@ -63,7 +63,7 @@ export default function FreeScreen({ params }) {
               <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 15, color: '#b9a6ff', letterSpacing: '.2em' }}>
                 {code}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.14em', color: '#7ee2a8', background: 'rgba(126,226,168,.14)', padding: '3px 9px', borderRadius: 999 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.14em', color: '#b9a6ff', background: 'rgba(185,166,255,.16)', padding: '3px 9px', borderRadius: 999 }}>
                 FREE · NO WALLET
               </span>
             </div>
@@ -119,7 +119,7 @@ export default function FreeScreen({ params }) {
                 style={{
                   fontFamily: "'Archivo',sans-serif", fontWeight: 900, lineHeight: 1,
                   fontSize: 'clamp(52px,min(15vw,17vh),220px)', letterSpacing: '-.05em',
-                  color: urgent ? '#ff5d5d' : sold ? '#7ee2a8' : '#b9a6ff',
+                  color: urgent ? '#ff5d5d' : sold ? '#b9a6ff' : '#b9a6ff',
                   transition: 'color .3s ease',
                 }}
               >
@@ -134,8 +134,8 @@ export default function FreeScreen({ params }) {
                         <span
                           style={{
                             display: 'inline-block', padding: 'clamp(7px,1.4vh,12px) clamp(14px,2vw,24px)',
-                            borderRadius: 999, background: 'rgba(126,226,168,.14)',
-                            fontSize: 'clamp(17px,2.8vh,30px)', fontWeight: 700, color: '#7ee2a8',
+                            borderRadius: 999, background: 'rgba(185,166,255,.16)',
+                            fontSize: 'clamp(17px,2.8vh,30px)', fontWeight: 700, color: '#b9a6ff',
                           }}
                         >
                           🎉 Congratulations <strong style={{ color: '#fff' }}>{winnerName}</strong> — {state.lname} is yours
@@ -192,7 +192,7 @@ function FinalBoard({ state }) {
           }}
         >
           {champ.name || `Bidder ${champ.entityId}`}
-          <span style={{ display: 'block', fontSize: '.28em', color: '#7ee2a8', letterSpacing: '-.01em', marginTop: 10 }}>
+          <span style={{ display: 'block', fontSize: '.28em', color: '#b9a6ff', letterSpacing: '-.01em', marginTop: 10 }}>
             {champ.wins} lot{champ.wins === 1 ? '' : 's'} won
           </span>
         </h1>
@@ -220,7 +220,7 @@ function FinalBoard({ state }) {
               {p.name || `Bidder ${p.entityId}`}
             </span>
             <span style={{ fontSize: 'clamp(13px,2.1vh,19px)', color: '#8a83a8' }}>{formatAmount(p.spent)} spent</span>
-            <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 'clamp(20px,3.4vh,30px)', color: p.wins ? '#7ee2a8' : '#4a4560', width: 46, textAlign: 'right' }}>
+            <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 'clamp(20px,3.4vh,30px)', color: p.wins ? '#b9a6ff' : '#4a4560', width: 46, textAlign: 'right' }}>
               {p.wins}
             </span>
           </div>

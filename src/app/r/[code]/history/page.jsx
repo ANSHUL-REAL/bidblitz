@@ -68,10 +68,10 @@ export default function History({ params }) {
 
 const KIND = {
   BidPlaced:  { dot: '#6b2de6', verb: 'bid' },
-  LotSold:    { dot: '#12703a', verb: 'won' },
+  LotSold:    { dot: '#5b28d9', verb: 'won' },
   LotUnsold:  { dot: '#9c94bd', verb: 'unsold' },
   AwaitingPayment: { dot: '#c98a00', verb: 'awaiting payment' },
-  LotPaid:    { dot: '#12703a', verb: 'paid' },
+  LotPaid:    { dot: '#5b28d9', verb: 'paid' },
   LotDefaulted: { dot: '#c0392b', verb: 'not paid' },
   Withdrawn:  { dot: '#0e7490', verb: 'withdrew' },
   LotStarted: { dot: '#5b28d9', verb: 'lot opened' },
