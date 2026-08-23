@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useCountdown } from '../lib/useAuction'
+import { useCountdown, formatCountdown } from '../lib/useAuction'
 import { formatAmount, incrementLabel, QUICK_INCREMENTS, ESCROW_INCREMENTS, entityLabel, entityColor } from '../lib/format.mjs'
 import { txUrl } from '../lib/chain.mjs'
 
@@ -207,7 +207,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
                   color: urgent ? '#ff4d4d' : '#12121c',
                 }}
               >
-                {Math.max(0, remaining)}s
+                {formatCountdown(remaining)}s
               </span>
             )}
           </div>

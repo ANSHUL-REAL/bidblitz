@@ -13,6 +13,7 @@ import { normalizeCode } from '../../../lib/freeRoom.mjs'
 import { formatAmount, entityLabel, entityColor } from '../../../lib/format.mjs'
 import { shortAddress } from '../../../lib/format.mjs'
 import { isSquads } from '../../../lib/modes.mjs'
+import { useAuth } from '../../../lib/useAuth'
 
 /**
  * A FREE room: real strangers, real-time bidding, no wallet and no MON.
@@ -242,6 +243,7 @@ function FreeBadge({ small = false }) {
 }
 
 function FreeJoinCard({ session, roomName }) {
+  const { user } = useAuth()
   const [name, setName] = useState('')
   const [avatarSeed, setAvatarSeed] = useState(AVATAR_SEEDS[0])
   const [error, setError] = useState('')
@@ -251,6 +253,11 @@ function FreeJoinCard({ session, roomName }) {
   useEffect(() => {
     setAvatarSeed(AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)])
   }, [])
+
+  // Someone already signed in should not retype who they are.
+  useEffect(() => {
+    if (user?.email && !name) setName(user.email.split('@')[0].slice(0, 40))
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const busy = Boolean(session.status)
 
@@ -330,10 +337,29 @@ function FreeJoinCard({ session, roomName }) {
           {busy ? session.status : <>JOIN FOR FREE <span style={{ fontSize: 20 }}>&#8594;</span></>}
         </button>
 
-        <p style={{ margin: '14px 0 0', fontSize: 12.5, lineHeight: 1.5, color: '#9c94bd', textAlign: 'center' }}>
+        {/* Optional, and said as such. An account only decides whether this
+            room is still in your history tomorrow — it changes no rule of the
+            game, and the join button above works either way. */}
+        {user ? (
+          <p style={{ margin: '14px 0 0', padding: '10px 12px', borderRadius: 10, background: '#e9f9ef', color: '#12703a', fontSize: 12.5, fontWeight: 700, textAlign: 'center' }}>
+            ✓ Signed in — this room will be saved to your history
+          </p>
+        ) : (
+          <div style={{ margin: '14px 0 0', padding: '12px 13px', borderRadius: 11, background: '#fbfaff', border: '1px dashed #ddd6f3' }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#6b6d78' }}>
+              Playing as a guest. Your wins live in this browser only — clear it or
+              switch phones and they&apos;re gone.{' '}
+              <Link href="/account" style={{ color: '#5b28d9', fontWeight: 800 }}>
+                Log in to keep your history →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        <p style={{ margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.5, color: '#9c94bd', textAlign: 'center' }}>
           Points in this room are just points — nothing here is on-chain. You can buy
           extra points with MON if you want a bigger paddle, but you never have to,
-          and everyone starts equal. For real bidding, join a MON room instead.
+          and everyone starts equal.
         </p>
 
         {error && <p style={{ margin: '14px 0 0', color: '#c0392b', fontSize: 14 }}>{error}</p>}
@@ -357,6 +383,11 @@ function LiveRoom({ state, signer, me }) {
     }
     return map
   }, [state?.players])
+
+  // Prefer the name someone chose over a paddle number — the roster has it.
+  const leaderName = state?.bidder
+    ? participants.get(state.bidder.toLowerCase())?.name || entityLabel(state.leadEntity, state?.mode)
+    : null
 
   const [flash, setFlash] = useState(null)
   const prevTop = useRef(null)
@@ -451,7 +482,7 @@ function LiveRoom({ state, signer, me }) {
             {formatAmount(highest)}<span style={{ fontSize: '.3em', marginLeft: 8 }}>PTS</span>
           </div>
           <div style={{ fontSize: 16, color: '#2a2a3a', marginTop: 6 }}>
-            {highest === 0n ? 'No bids yet — open it' : `${entityLabel(state.leadEntity, state?.mode)} leading`}
+            {highest === 0n ? 'No bids yet — open it' : `${leaderName} leading`}
           </div>
         </div>
       </div>
@@ -461,7 +492,7 @@ function LiveRoom({ state, signer, me }) {
           <div style={{ fontSize: 12, letterSpacing: '.2em', color: '#6b6d78', fontWeight: 700, marginBottom: 6 }}>
             WHO GETS THERE FIRST
           </div>
-          <RaceTrack racers={racers} flashKey={flash} scale={0.82} />
+          <RaceTrack racers={racers} flashKey={flash} scale={0.82} unit="PTS" />
         </div>
       )}
 
@@ -470,7 +501,7 @@ function LiveRoom({ state, signer, me }) {
           <div style={{ fontSize: 12, letterSpacing: '.2em', color: '#6b6d78', fontWeight: 700, marginBottom: 8 }}>
             TEAM STANDINGS
           </div>
-          <TeamStandings squadPurses={state?.squadPurses} leadEntity={state?.leadEntity} myEntity={me?.entityId} />
+          <TeamStandings squadPurses={state?.squadPurses} leadEntity={state?.leadEntity} myEntity={me?.entityId} unit="PTS" />
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@ import { use, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { RaceTrack, racersFromState } from '../../../../components/RaceTrack'
-import { useCountdown } from '../../../../lib/useAuction'
+import { useCountdown, formatCountdown } from '../../../../lib/useAuction'
 import { useFreeState } from '../../../../lib/useFreeRoom'
 import { normalizeCode } from '../../../../lib/freeRoom.mjs'
 import { formatAmount, entityLabel } from '../../../../lib/format.mjs'
@@ -47,12 +47,12 @@ export default function FreeScreen({ params }) {
   return (
     <main
       style={{
-        minHeight: '100dvh', background: '#0d0b16', color: '#fff',
+        height: '100dvh', overflow: 'hidden', background: '#0d0b16', color: '#fff',
         fontFamily: "'DM Sans',system-ui,sans-serif",
         display: 'flex', flexDirection: 'column',
       }}
     >
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 34px' }}>
+      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'clamp(10px,1.8vh,22px) 34px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <BidBlitzMark size={40} />
           <div>
@@ -77,13 +77,13 @@ export default function FreeScreen({ params }) {
         </div>
       </header>
 
-      <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: '0 34px 34px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', placeItems: 'center', padding: '0 34px clamp(12px,2.5vh,34px)', overflow: 'hidden' }}>
         {state?.closed ? (
           <FinalBoard state={state} />
         ) : !state?.lotId ? (
           <JoinSplash code={code} />
         ) : (
-          <div style={{ width: '100%', maxWidth: 1400, textAlign: 'center' }}>
+          <div style={{ width: '100%', maxWidth: 1400, textAlign: 'center', display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%' }}>
             <div style={{ fontSize: 15, letterSpacing: '.28em', color: '#8a83a8', fontWeight: 700 }}>
               LOT #{state.lotId}{sold ? ' · SOLD' : live ? ' · LIVE' : ''}
             </div>
@@ -93,7 +93,8 @@ export default function FreeScreen({ params }) {
                 src={state.limage}
                 alt=""
                 style={{
-                  width: 200, height: 200, objectFit: 'cover', borderRadius: 26, margin: '18px auto 0',
+                  width: 'clamp(80px,14vh,200px)', height: 'clamp(80px,14vh,200px)', objectFit: 'cover',
+                  borderRadius: 26, margin: 'clamp(6px,1.5vh,18px) auto 0', flexShrink: 0,
                   boxShadow: '0 30px 90px rgba(0,0,0,.5)', display: 'block',
                 }}
                 onError={(e) => { e.currentTarget.style.display = 'none' }}
@@ -103,21 +104,21 @@ export default function FreeScreen({ params }) {
             <h1
               style={{
                 fontFamily: "'Archivo',sans-serif", fontWeight: 900, letterSpacing: '-.04em',
-                textTransform: 'uppercase', fontSize: 'clamp(44px,7vw,104px)', margin: '16px 0 0',
-                lineHeight: .92, textWrap: 'balance',
+                textTransform: 'uppercase', fontSize: 'clamp(32px,min(7vw,7vh),104px)',
+                margin: 'clamp(6px,1.4vh,16px) 0 0', lineHeight: .92, textWrap: 'balance', flexShrink: 0,
               }}
             >
               {state.lname}
             </h1>
 
-            <div style={{ marginTop: 20 }}>
+            <div style={{ marginTop: 'clamp(6px,1.6vh,20px)', flexShrink: 0 }}>
               <div style={{ fontSize: 14, letterSpacing: '.28em', color: '#8a83a8', fontWeight: 700 }}>
                 {sold ? 'SOLD FOR' : 'CURRENT BID'}
               </div>
               <div
                 style={{
                   fontFamily: "'Archivo',sans-serif", fontWeight: 900, lineHeight: 1,
-                  fontSize: 'clamp(80px,15vw,220px)', letterSpacing: '-.05em',
+                  fontSize: 'clamp(52px,min(15vw,17vh),220px)', letterSpacing: '-.05em',
                   color: urgent ? '#ff5d5d' : sold ? '#7ee2a8' : '#b9a6ff',
                   transition: 'color .3s ease',
                 }}
@@ -126,7 +127,7 @@ export default function FreeScreen({ params }) {
                 <span style={{ fontSize: '.26em', marginLeft: 14, color: '#8a83a8' }}>PTS</span>
               </div>
 
-              <div style={{ fontSize: 26, marginTop: 10, color: '#e5e0f5' }}>
+              <div style={{ fontSize: 'clamp(16px,2.4vh,26px)', marginTop: 'clamp(4px,1vh,10px)', color: '#e5e0f5' }}>
                 {sold
                   ? winnerName ? <><strong>{winnerName}</strong> takes it</> : 'Nobody bid'
                   : highest === 0n
@@ -137,18 +138,18 @@ export default function FreeScreen({ params }) {
               {live && (
                 <div
                   style={{
-                    fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 64,
-                    color: urgent ? '#ff5d5d' : '#fff', marginTop: 10,
+                    fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 'clamp(34px,6vh,64px)',
+                    color: urgent ? '#ff5d5d' : '#fff', marginTop: 'clamp(2px,.8vh,10px)',
                   }}
                 >
-                  {remaining}s
+                  {formatCountdown(remaining)}s
                 </div>
               )}
             </div>
 
             {racers.length > 0 && (
-              <div style={{ marginTop: 30 }}>
-                <RaceTrack racers={racers} dark />
+              <div style={{ marginTop: 'clamp(10px,2.4vh,30px)', minHeight: 0, overflow: 'hidden', flexShrink: 1 }}>
+                <RaceTrack racers={racers} dark unit="PTS" />
               </div>
             )}
           </div>
@@ -166,15 +167,16 @@ function FinalBoard({ state }) {
   const champ = players[0]
 
   return (
-    <div style={{ width: '100%', maxWidth: 900, textAlign: 'center' }}>
-      <div style={{ fontSize: 15, letterSpacing: '.3em', color: '#8a83a8', fontWeight: 700 }}>
+    <div style={{ width: '100%', maxWidth: 900, textAlign: 'center', display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%' }}>
+      <div style={{ fontSize: 15, letterSpacing: '.3em', color: '#8a83a8', fontWeight: 700, flexShrink: 0 }}>
         AUCTION ENDED
       </div>
       {champ && champ.wins > 0 ? (
         <h1
           style={{
             fontFamily: "'Archivo',sans-serif", fontWeight: 900, letterSpacing: '-.04em',
-            textTransform: 'uppercase', fontSize: 'clamp(48px,8vw,120px)', margin: '14px 0 0', lineHeight: .92,
+            textTransform: 'uppercase', fontSize: 'clamp(32px,min(8vw,9vh),120px)',
+            margin: 'clamp(6px,1.4vh,14px) 0 0', lineHeight: .92, flexShrink: 0,
           }}
         >
           {champ.name || `Bidder ${champ.entityId}`}
@@ -186,21 +188,27 @@ function FinalBoard({ state }) {
         <p style={{ fontSize: 30, color: '#8a83a8', marginTop: 20 }}>No lots were sold.</p>
       )}
 
-      <div style={{ marginTop: 34, display: 'grid', gap: 8, textAlign: 'left' }}>
-        {players.slice(0, 8).map((p, i) => (
+      <div
+        style={{
+          marginTop: 'clamp(12px,3vh,34px)', display: 'grid', gap: 8, textAlign: 'left',
+          minHeight: 0, overflowY: 'auto', flexShrink: 1,
+        }}
+      >
+        {players.slice(0, 10).map((p, i) => (
           <div
             key={p.addr}
             style={{
-              display: 'flex', alignItems: 'center', gap: 16, padding: '12px 18px', borderRadius: 14,
+              display: 'flex', alignItems: 'center', gap: 16, borderRadius: 14, flexShrink: 0,
+              padding: 'clamp(7px,1.3vh,12px) 18px',
               background: i === 0 ? 'rgba(185,166,255,.14)' : 'rgba(255,255,255,.04)',
             }}
           >
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 20, color: '#8a83a8', width: 34 }}>{i + 1}</span>
-            <span style={{ fontSize: 24, fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 'clamp(14px,2.2vh,20px)', color: '#8a83a8', width: 34 }}>{i + 1}</span>
+            <span style={{ fontSize: 'clamp(16px,2.8vh,24px)', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {p.name || `Bidder ${p.entityId}`}
             </span>
-            <span style={{ fontSize: 19, color: '#8a83a8' }}>{formatAmount(p.spent)} spent</span>
-            <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 30, color: p.wins ? '#7ee2a8' : '#4a4560', width: 46, textAlign: 'right' }}>
+            <span style={{ fontSize: 'clamp(13px,2.1vh,19px)', color: '#8a83a8' }}>{formatAmount(p.spent)} spent</span>
+            <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 'clamp(20px,3.4vh,30px)', color: p.wins ? '#7ee2a8' : '#4a4560', width: 46, textAlign: 'right' }}>
               {p.wins}
             </span>
           </div>
@@ -234,19 +242,19 @@ function JoinSplash({ code }) {
         <img
           src={qr}
           alt=""
-          style={{ width: 'min(46vh,440px)', height: 'min(46vh,440px)', borderRadius: 24, margin: '22px 0 0', background: '#fff', padding: 14 }}
+          style={{ width: 'min(40vh,440px)', height: 'min(40vh,440px)', borderRadius: 24, margin: 'clamp(10px,2.4vh,22px) 0 0', background: '#fff', padding: 14 }}
         />
       )}
       <div
         style={{
           fontFamily: "'DM Mono',monospace", fontWeight: 700,
-          fontSize: 'clamp(56px,9vw,128px)', letterSpacing: '.22em',
-          margin: '18px 0 0', color: '#b9a6ff',
+          fontSize: 'clamp(38px,min(9vw,10vh),128px)', letterSpacing: '.22em',
+          margin: 'clamp(6px,1.6vh,18px) 0 0', color: '#b9a6ff',
         }}
       >
         {code}
       </div>
-      <p style={{ fontSize: 22, color: '#8a83a8', margin: '10px 0 0' }}>
+      <p style={{ fontSize: 'clamp(15px,2.4vh,22px)', color: '#8a83a8', margin: 'clamp(4px,1vh,10px) 0 0' }}>
         Pick a name and a face. That&apos;s it — no wallet, no MON, nothing to lose.
       </p>
     </div>

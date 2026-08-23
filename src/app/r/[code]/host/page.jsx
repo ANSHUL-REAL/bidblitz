@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { formatEther } from 'viem'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { JoinCard } from '../../../../components/JoinCard'
-import { useAuction, useCountdown } from '../../../../lib/useAuction'
+import { useAuction, useCountdown, formatCountdown } from '../../../../lib/useAuction'
 import { useSession } from '../../../../lib/useSession'
 import { WithdrawPanel } from '../../../../components/WithdrawPanel'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
@@ -229,7 +229,7 @@ function Console({ code, roomId, state, refetch, signer }) {
                     </div>
                   </div>
                   <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: 34, color: urgent ? '#ff4d4d' : '#12121c', letterSpacing: '-.03em' }}>
-                    {remaining.toFixed(1)}s
+                    {formatCountdown(remaining)}s
                   </div>
                 </div>
               </>

@@ -3,7 +3,7 @@ import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { Avatar } from '../../../../components/Avatar'
-import { useCountdown } from '../../../../lib/useAuction'
+import { useCountdown, formatCountdown } from '../../../../lib/useAuction'
 import { useFreeState, useFreeHost } from '../../../../lib/useFreeRoom'
 import { normalizeCode, DEFAULT_DURATION, loadHostToken } from '../../../../lib/freeRoom.mjs'
 import { formatAmount, entityLabel, entityColor, shortAddress } from '../../../../lib/format.mjs'
@@ -53,6 +53,19 @@ export default function FreeHost({ params }) {
   return <Console code={code} state={state} host={host} refetch={refetch} />
 }
 
+/**
+ * One viewport, no page scroll, standings always on screen.
+ *
+ * A host is standing in front of a room narrating an auction — they cannot
+ * hunt for a panel or scroll to find who is winning. So the page is locked to
+ * the viewport height and the two things they read constantly (the bid ledger
+ * and the standings) sit side by side underneath the lot, each scrolling
+ * INSIDE itself. Nothing important can end up below the fold.
+ *
+ * The right-hand column never changes contents. The left swaps between the
+ * live bid ledger and the start-next-lot picker, because those two are never
+ * needed at the same moment.
+ */
 function Console({ code, state, host, refetch }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -86,42 +99,59 @@ function Console({ code, state, host, refetch }) {
     }
   }
 
-  return (
-    <main style={{ minHeight: '100dvh', background: '#f1f0f9', paddingBottom: 60 }}>
-      <Header code={code} state={state} closed={closed} />
-
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '16px 16px 0' }}>
-        {closed ? (
+  if (closed) {
+    return (
+      <main style={{ height: '100dvh', overflow: 'hidden', background: '#f1f0f9', display: 'flex', flexDirection: 'column' }}>
+        <Header code={code} state={state} closed onEnd={null} />
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
           <FinalStandings players={players} />
-        ) : (
-          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0,1fr)' }} className="host-grid">
-            <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
-              <LiveLot
-                state={state} remaining={remaining} live={live} isOpen={isOpen}
-                urgent={urgent} highest={highest} leaderName={leaderName}
-                busy={busy} run={run} host={host}
-              />
-              {isOpen && <BidLedger bids={bids} highest={highest} />}
-              {!isOpen && <StartLot state={state} busy={busy} run={run} host={host} setMsg={setMsg} />}
-            </div>
+        </div>
+      </main>
+    )
+  }
 
-            <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
-              <Standings
-                players={players} leadAddr={state?.bidder} busy={busy}
-                onKick={(addr, name) => run(() => host.kickPlayer(addr), `Removed ${name || 'player'}`)}
-              />
-              <EndRoom
-                confirmEnd={confirmEnd} setConfirmEnd={setConfirmEnd} busy={busy}
-                onEnd={() => run(() => host.endRoom(), 'Auction ended')}
-              />
-            </div>
-          </div>
-        )}
+  return (
+    <main style={{ height: '100dvh', overflow: 'hidden', background: '#f1f0f9', display: 'flex', flexDirection: 'column' }}>
+      <Header
+        code={code} state={state} closed={false}
+        onEnd={() => setConfirmEnd(true)}
+      />
+
+      <div
+        style={{
+          flex: 1, minHeight: 0, width: '100%', maxWidth: 1080, margin: '0 auto',
+          padding: '10px 10px 10px', display: 'flex', flexDirection: 'column', gap: 10,
+        }}
+      >
+        <LiveLot
+          state={state} remaining={remaining} live={live} isOpen={isOpen}
+          urgent={urgent} highest={highest} leaderName={leaderName}
+          busy={busy} run={run} host={host}
+        />
+
+        {/* The two panels a host reads constantly, side by side and never
+            below the fold. Each scrolls inside itself. */}
+        <div
+          style={{
+            flex: 1, minHeight: 0, display: 'grid', gap: 10,
+            gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
+          }}
+        >
+          {isOpen
+            ? <BidLedger bids={bids} highest={highest} />
+            : <StartLot state={state} busy={busy} run={run} host={host} setMsg={setMsg} />}
+
+          <Standings
+            players={players} leadAddr={state?.bidder} busy={busy}
+            onKick={(addr, name) => run(() => host.kickPlayer(addr), `Removed ${name || 'player'}`)}
+          />
+        </div>
 
         {msg && (
           <p
             style={{
-              marginTop: 14, padding: '12px 14px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+              flexShrink: 0, margin: 0, padding: '9px 12px', borderRadius: 10,
+              fontSize: 13, fontWeight: 600, textAlign: 'center',
               background: msg.ok ? '#e9f9ef' : '#fdecea', color: msg.ok ? '#12703a' : '#c0392b',
             }}
           >
@@ -130,23 +160,66 @@ function Console({ code, state, host, refetch }) {
         )}
       </div>
 
-      {/* Two columns once there's room for them; stacked on the phone a host
-          is actually holding while they narrate. */}
-      <style>{`
-        @media (min-width: 900px) {
-          .host-grid { grid-template-columns: minmax(0,1.35fr) minmax(0,1fr) !important; }
-        }
-      `}</style>
+      {confirmEnd && (
+        <EndRoomDialog
+          busy={busy}
+          onCancel={() => setConfirmEnd(false)}
+          onEnd={() => { setConfirmEnd(false); run(() => host.endRoom(), 'Auction ended') }}
+        />
+      )}
     </main>
   )
 }
 
-function Header({ code, state, closed }) {
+/**
+ * Ending the room is rare and destructive, so it lives in a dialog rather than
+ * taking permanent space next to the controls a host uses every lot.
+ */
+function EndRoomDialog({ busy, onCancel, onEnd }) {
+  return (
+    <div
+      onClick={onCancel}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(18,18,28,.55)',
+        display: 'grid', placeItems: 'center', padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: '#fff', borderRadius: 18, padding: 22, maxWidth: 380, width: '100%' }}
+      >
+        <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20, letterSpacing: '-.02em' }}>
+          End this auction?
+        </div>
+        <p style={{ margin: '8px 0 0', fontSize: 13.5, color: '#6b6d78', lineHeight: 1.5 }}>
+          Everyone sees the final standings. Anything still live is cancelled, not
+          sold — <strong>nobody gets charged</strong>. This can&apos;t be undone.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button
+            className="btn-plain" disabled={busy} onClick={onEnd}
+            style={{ flex: 1, padding: '13px 0', borderRadius: 11, background: '#c0392b', color: '#fff', fontWeight: 800, fontSize: 14.5 }}
+          >
+            End it
+          </button>
+          <button
+            className="btn-plain" onClick={onCancel}
+            style={{ flex: 1, padding: '13px 0', borderRadius: 11, background: '#f3f1fa', color: '#6b6d78', fontWeight: 700, fontSize: 14 }}
+          >
+            Keep going
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Header({ code, state, closed, onEnd }) {
   return (
     <header
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '13px 18px', background: '#fff', position: 'sticky', top: 0, zIndex: 20,
+        padding: '10px 14px', background: '#fff', flexShrink: 0, zIndex: 20,
         boxShadow: '0 1px 0 rgba(18,18,28,.06)', gap: 12,
       }}
     >
@@ -161,9 +234,16 @@ function Header({ code, state, closed }) {
           </span>
         </span>
       </Link>
-      <div style={{ display: 'flex', gap: 13, alignItems: 'center' }}>
-        <Link href={`/f/${code}/screen`} style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78' }}>Screen</Link>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.14em', color: '#6b2de6' }}>HOST</span>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+        <Link href={`/f/${code}/screen`} style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}>Screen</Link>
+        {onEnd && (
+          <button
+            className="btn-plain" onClick={onEnd}
+            style={{ padding: '7px 11px', borderRadius: 9, border: '1.5px solid #f2d6d2', background: '#fff', color: '#c0392b', fontWeight: 800, fontSize: 12.5 }}
+          >
+            End
+          </button>
+        )}
       </div>
     </header>
   )
@@ -176,8 +256,8 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
   return (
     <section
       style={{
-        background: '#fff', borderRadius: 18, overflow: 'hidden',
-        boxShadow: '0 18px 50px rgba(30,20,70,.08)',
+        flexShrink: 0, background: '#fff', borderRadius: 16, overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(30,20,70,.07)',
         border: `2px solid ${isOpen ? (urgent ? '#ff4d4d' : '#6b2de6') : '#eeecf7'}`,
         transition: 'border-color .3s ease',
       }}
@@ -193,7 +273,7 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
         </div>
       )}
 
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: 14 }}>
         {isOpen ? (
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -206,23 +286,23 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
                   color: urgent ? '#ff4d4d' : '#12121c', lineHeight: 1,
                 }}
               >
-                {Math.max(0, remaining)}s
+                {formatCountdown(remaining)}s
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 9 }}>
               {state.limage && (
                 <img
                   src={state.limage} alt=""
-                  style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
+                  style={{ width: 46, height: 46, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }}
                   onError={(e) => { e.currentTarget.style.display = 'none' }}
                 />
               )}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: '-.03em', lineHeight: 1.05 }}>
+                <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20, letterSpacing: '-.03em', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {state.lname}
                 </div>
-                <div style={{ fontSize: 14.5, color: '#6b6d78', marginTop: 3 }}>
+                <div style={{ fontSize: 13, color: '#6b6d78', marginTop: 2 }}>
                   {highest === 0n
                     ? 'No bids yet'
                     : <><strong style={{ color: '#12121c' }}>{formatAmount(highest)} PTS</strong> · {leaderName} leading</>}
@@ -230,14 +310,14 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+            <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>
               <button
                 className="btn-plain" disabled={busy}
                 onClick={() => run(() => host.sellLot(state.lotId), highest === 0n ? 'Closed — no bids' : `Sold to ${leaderName}`)}
                 style={{
-                  flex: 2, padding: '20px 0', borderRadius: 15, background: '#12703a', color: '#fff',
-                  fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 21, letterSpacing: '.08em',
-                  boxShadow: '0 14px 30px rgba(18,112,58,.28)', opacity: busy ? .6 : 1,
+                  flex: 2, padding: '16px 0', borderRadius: 13, background: '#12703a', color: '#fff',
+                  fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 19, letterSpacing: '.08em',
+                  boxShadow: '0 10px 22px rgba(18,112,58,.26)', opacity: busy ? .6 : 1,
                 }}
               >
                 SELL
@@ -246,8 +326,8 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
                 className="btn-plain" disabled={busy}
                 onClick={() => run(() => host.closeLot(), 'Lot cancelled — nobody charged')}
                 style={{
-                  flex: 1, padding: '20px 0', borderRadius: 15, border: '2px solid #eeecf7',
-                  background: '#fff', color: '#6b6d78', fontWeight: 700, fontSize: 15,
+                  flex: 1, padding: '16px 0', borderRadius: 13, border: '2px solid #eeecf7',
+                  background: '#fff', color: '#6b6d78', fontWeight: 700, fontSize: 14,
                 }}
               >
                 Cancel
@@ -261,16 +341,16 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
             </div>
             {state?.lotId ? (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: '-.02em' }}>
+                <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 18, letterSpacing: '-.02em' }}>
                   {state.lname}
                 </div>
-                <div style={{ fontSize: 15, color: highest > 0n ? '#12703a' : '#6b6d78', marginTop: 3, fontWeight: highest > 0n ? 700 : 400 }}>
+                <div style={{ fontSize: 13.5, color: highest > 0n ? '#12703a' : '#6b6d78', marginTop: 2, fontWeight: highest > 0n ? 700 : 400 }}>
                   {highest > 0n ? `Sold for ${formatAmount(highest)} PTS to ${leaderName}` : 'Went unsold'}
                 </div>
               </div>
             ) : (
-              <p style={{ margin: '8px 0 0', fontSize: 15, color: '#6b6d78', lineHeight: 1.5 }}>
-                Put something on the block. Free rooms cost nothing, so run as many as you like.
+              <p style={{ margin: '6px 0 0', fontSize: 13.5, color: '#6b6d78', lineHeight: 1.45 }}>
+                Put something on the block — pick one on the left.
               </p>
             )}
           </>
@@ -289,10 +369,15 @@ function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, 
  */
 function BidLedger({ bids, highest }) {
   return (
-    <section style={{ background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 18px 50px rgba(30,20,70,.08)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 800 }}>
-          BIDS THIS LOT
+    <section
+      style={{
+        background: '#fff', borderRadius: 16, padding: 13, boxShadow: '0 10px 30px rgba(30,20,70,.07)',
+        display: 'flex', flexDirection: 'column', minHeight: 0,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: 10, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 800 }}>
+          BIDS
         </span>
         <span style={{ fontSize: 12.5, color: '#9c94bd' }}>{bids.length} total</span>
       </div>
@@ -302,7 +387,7 @@ function BidLedger({ bids, highest }) {
           Nothing yet — the room is still deciding.
         </p>
       ) : (
-        <div style={{ marginTop: 10, maxHeight: 260, overflowY: 'auto', display: 'grid', gap: 6 }}>
+        <div style={{ marginTop: 8, flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gap: 5, alignContent: 'start' }}>
           {bids.map((b, i) => {
             const top = BigInt(b.amount) === highest && i === 0
             const opening = i === bids.length - 1
@@ -310,14 +395,14 @@ function BidLedger({ bids, highest }) {
               <div
                 key={`${b.bidder}-${b.at}-${i}`}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 11px', borderRadius: 10,
+                  display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
+                  padding: '7px 8px', borderRadius: 9,
                   background: top ? '#e9f9ef' : '#fbfaff',
                   border: `1px solid ${top ? '#bfe8cf' : '#f0edfa'}`,
                 }}
               >
-                <Avatar seed={b.bidder} size={26} />
-                <span style={{ fontWeight: 700, fontSize: 14, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <Avatar seed={b.bidder} size={22} />
+                <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {b.name || shortAddress(b.bidder)}
                 </span>
                 {opening && (
@@ -325,7 +410,7 @@ function BidLedger({ bids, highest }) {
                     OPENING
                   </span>
                 )}
-                <span style={{ marginLeft: 'auto', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 16, color: top ? '#12703a' : '#12121c' }}>
+                <span style={{ marginLeft: 'auto', fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 14, color: top ? '#12703a' : '#12121c' }}>
                   {formatAmount(b.amount)}
                 </span>
               </div>
@@ -348,9 +433,14 @@ function Standings({ players, leadAddr, busy, onKick }) {
   )
 
   return (
-    <section style={{ background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 18px 50px rgba(30,20,70,.08)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 800 }}>
+    <section
+      style={{
+        background: '#fff', borderRadius: 16, padding: 13, boxShadow: '0 10px 30px rgba(30,20,70,.07)',
+        display: 'flex', flexDirection: 'column', minHeight: 0,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: 10, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 800 }}>
           IN THE ROOM
         </span>
         <span style={{ fontSize: 12.5, color: '#9c94bd' }}>{players.length}</span>
@@ -361,7 +451,7 @@ function Standings({ players, leadAddr, busy, onKick }) {
           Nobody yet. Put the big screen up — the QR is on it.
         </p>
       ) : (
-        <div style={{ marginTop: 10, display: 'grid', gap: 7 }}>
+        <div style={{ marginTop: 8, flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gap: 5, alignContent: 'start' }}>
           {sorted.map((p) => {
             const leading = leadAddr && p.addr === leadAddr
             const asking = confirm === p.addr
@@ -369,20 +459,20 @@ function Standings({ players, leadAddr, busy, onKick }) {
               <div
                 key={p.addr}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 11,
+                  display: 'flex', alignItems: 'center', gap: 7, padding: '7px 8px', borderRadius: 9, flexShrink: 0,
                   background: leading ? '#f3eeff' : '#fbfaff',
                   border: `1px solid ${leading ? '#ddd0fa' : '#f0edfa'}`,
                 }}
               >
                 <span style={{ width: 8, height: 8, borderRadius: 2, transform: 'rotate(45deg)', background: entityColor(p.entityId), flexShrink: 0 }} />
-                <Avatar seed={p.avatarSeed || p.addr} size={28} />
+                <Avatar seed={p.avatarSeed || p.addr} size={22} />
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontWeight: 700, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.name || entityLabel(p.entityId)}
-                    {p.wins > 0 && <span style={{ marginLeft: 6, fontSize: 11.5, color: '#12703a', fontWeight: 800 }}>{p.wins}W</span>}
+                    {p.wins > 0 && <span style={{ marginLeft: 5, fontSize: 10.5, color: '#12703a', fontWeight: 800 }}>{p.wins}W</span>}
                   </div>
-                  <div style={{ fontSize: 12, color: '#6b6d78' }}>
-                    {formatAmount(p.purse)} left · {formatAmount(p.spent)} spent
+                  <div style={{ fontSize: 10.5, color: '#6b6d78' }}>
+                    {formatAmount(p.purse)} left
                   </div>
                 </div>
 
@@ -447,18 +537,22 @@ function StartLot({ state, busy, run, host, setMsg }) {
   }
 
   return (
-    <section style={{ background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 18px 50px rgba(30,20,70,.08)' }}>
-      <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 800 }}>
-        START THE NEXT LOT
+    <section
+      style={{
+        background: '#fff', borderRadius: 16, padding: 13, boxShadow: '0 10px 30px rgba(30,20,70,.07)',
+        display: 'flex', flexDirection: 'column', minHeight: 0,
+      }}
+    >
+      <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 800, flexShrink: 0 }}>
+        NEXT LOT
       </div>
 
-      <div style={{ display: 'flex', gap: 7, marginTop: 12, alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: '#6b6d78', fontWeight: 700, marginRight: 2 }}>Timer</span>
+      <div style={{ display: 'flex', gap: 5, marginTop: 9, alignItems: 'center', flexShrink: 0 }}>
         {[10, 20, 30, 60].map((s) => (
           <button
             key={s} className="btn-plain" onClick={() => setDuration(s)}
             style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, fontWeight: 800, fontSize: 13.5,
+              flex: 1, padding: '8px 0', borderRadius: 9, fontWeight: 800, fontSize: 12,
               border: `2px solid ${duration === s ? '#6b2de6' : '#e6e2f5'}`,
               background: duration === s ? '#efeafd' : '#fff',
               color: duration === s ? '#5b28d9' : '#6b6d78',
@@ -470,7 +564,7 @@ function StartLot({ state, busy, run, host, setMsg }) {
       </div>
 
       {catItems.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(104px,1fr))', gap: 8, marginTop: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(84px,1fr))', gap: 7, marginTop: 10, flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'start' }}>
           {catItems.slice(0, 24).map((item) => {
             const label = typeof item === 'string' ? item : item.name
             const art = imageForItem(label)
@@ -483,7 +577,7 @@ function StartLot({ state, busy, run, host, setMsg }) {
                   background: '#fbfaff', textAlign: 'left', opacity: busy ? .55 : 1,
                 }}
               >
-                <div style={{ height: 62, background: '#efeafd', position: 'relative' }}>
+                <div style={{ height: 46, background: '#efeafd', position: 'relative' }}>
                   {art && (
                     <img
                       src={art} alt=""
@@ -492,7 +586,7 @@ function StartLot({ state, busy, run, host, setMsg }) {
                     />
                   )}
                 </div>
-                <div style={{ padding: '8px 9px', fontSize: 12.5, fontWeight: 700, color: '#2a2a3a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ padding: '6px 7px', fontSize: 11, fontWeight: 700, color: '#2a2a3a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {label}
                 </div>
               </button>
@@ -504,12 +598,12 @@ function StartLot({ state, busy, run, host, setMsg }) {
       {!custom ? (
         <button
           className="btn-plain" onClick={() => setCustom(true)}
-          style={{ width: '100%', marginTop: 12, padding: '12px 0', borderRadius: 11, border: '2px dashed #ddd6f3', background: '#fff', color: '#5b28d9', fontWeight: 700, fontSize: 13.5 }}
+          style={{ flexShrink: 0, width: '100%', marginTop: 9, padding: '10px 0', borderRadius: 10, border: '2px dashed #ddd6f3', background: '#fff', color: '#5b28d9', fontWeight: 700, fontSize: 12.5 }}
         >
           + Something else
         </button>
       ) : (
-        <div style={{ marginTop: 14, padding: 14, borderRadius: 13, background: '#fbfaff', border: '1px solid #eeecf7' }}>
+        <div style={{ flexShrink: 0, marginTop: 10, padding: 11, borderRadius: 12, background: '#fbfaff', border: '1px solid #eeecf7' }}>
           <input
             className="field" value={name} autoFocus
             onChange={(e) => setName(e.target.value)}
@@ -540,43 +634,6 @@ function StartLot({ state, busy, run, host, setMsg }) {
             </button>
           </div>
         </div>
-      )}
-    </section>
-  )
-}
-
-function EndRoom({ confirmEnd, setConfirmEnd, busy, onEnd }) {
-  return (
-    <section style={{ background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 18px 50px rgba(30,20,70,.08)' }}>
-      {!confirmEnd ? (
-        <button
-          className="btn-plain" onClick={() => setConfirmEnd(true)}
-          style={{ width: '100%', padding: '13px 0', borderRadius: 12, border: '2px solid #f2d6d2', background: '#fff', color: '#c0392b', fontWeight: 800, fontSize: 14.5 }}
-        >
-          End this auction
-        </button>
-      ) : (
-        <>
-          <p style={{ margin: 0, fontSize: 13.5, color: '#6b6d78', lineHeight: 1.5 }}>
-            Ends the room for everyone and shows the final standings. Anything still
-            live is cancelled, not sold — <strong>nobody gets charged</strong>. This
-            can&apos;t be undone.
-          </p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button
-              className="btn-plain" disabled={busy} onClick={onEnd}
-              style={{ flex: 1, padding: '13px 0', borderRadius: 11, background: '#c0392b', color: '#fff', fontWeight: 800, fontSize: 14.5 }}
-            >
-              End it
-            </button>
-            <button
-              className="btn-plain" onClick={() => setConfirmEnd(false)}
-              style={{ flex: 1, padding: '13px 0', borderRadius: 11, background: '#f3f1fa', color: '#6b6d78', fontWeight: 700, fontSize: 14 }}
-            >
-              Keep going
-            </button>
-          </div>
-        </>
       )}
     </section>
   )

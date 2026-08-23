@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { BidBlitzLogo, MonadLockup, BidBlitzMark, Bolt } from '../../../../components/Logo'
-import { useAuction, useCountdown } from '../../../../lib/useAuction'
+import { useAuction, useCountdown, formatCountdown } from '../../../../lib/useAuction'
 import { formatMon, SQUADS, squadOf, entityLabel, entityColor, shortAddress } from '../../../../lib/format.mjs'
 import { EXPLORER } from '../../../../lib/chain.mjs'
 import { unlock, dingBid, gavel, fanfareStart, tick } from '../../../../lib/sound.mjs'
@@ -212,7 +212,7 @@ function BigTimer({ remaining, urgent }) {
         className="display"
         style={{ fontSize: 60, color: urgent ? 'var(--live)' : '#fff', textTransform: 'none' }}
       >
-        {remaining.toFixed(1)}<span style={{ fontSize: 30, color: 'var(--ink-3)' }}>s</span>
+        {formatCountdown(remaining)}<span style={{ fontSize: 30, color: 'var(--ink-3)' }}>s</span>
       </div>
       <div style={{ height: 12, background: 'var(--line)', borderRadius: 999, overflow: 'hidden', marginTop: 8 }}>
         <div

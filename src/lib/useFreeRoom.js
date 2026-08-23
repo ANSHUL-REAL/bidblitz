@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   makePlayerId, savePlayer, loadPlayer, clearPlayer, loadHostToken, normalizeCode,
 } from './freeRoom.mjs'
+import { accessToken } from './supabase'
 
 /**
  * Free rooms, client side.
@@ -130,15 +131,21 @@ export function useFreeSession(rawCode) {
       const existing = loadPlayer(code)
       const playerId = existing?.addr || makePlayerId()
 
+      // Sent only if they happen to be logged in. Joining never requires it —
+      // it decides whether this room is remembered, nothing else.
+      const token = await accessToken()
       const res = await fetch('/api/free/join', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ code, playerId, name, avatarSeed }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || `join failed (${res.status})`)
 
-      const next = { ...data.player, avatarSeed: data.player.avatarSeed || avatarSeed }
+      const next = { ...data.player, avatarSeed: data.player.avatarSeed || avatarSeed, saved: Boolean(data.saved) }
       savePlayer(code, next)
       setPlayer(next)
       setSigner(new FreePlayer(code, next.addr))

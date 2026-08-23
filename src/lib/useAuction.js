@@ -89,6 +89,19 @@ export function useAuction({ roomId, live = false, intervalMs = 1000 } = {}) {
  * second then jumps — which on a big screen reads as "the app is broken".
  * Anchor once to chain time, then interpolate locally.
  */
+/**
+ * How to SHOW the value useCountdown returns.
+ *
+ * It returns fractions on purpose — the progress bars need them to move
+ * smoothly — but a raw float renders as "265.596s", which reads like a bug.
+ * Tenths only in the last ten seconds, where the drama is and where a tenth
+ * genuinely changes what a bidder does; whole seconds before that.
+ */
+export const formatCountdown = (remaining) => {
+  const r = Math.max(0, Number(remaining) || 0)
+  return r < 10 ? r.toFixed(1) : String(Math.ceil(r))
+}
+
 export function useCountdown(endsAt, chainNow, fetchedAt) {
   const [remaining, setRemaining] = useState(0)
 

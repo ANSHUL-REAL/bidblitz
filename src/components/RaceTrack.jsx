@@ -24,7 +24,7 @@ const SEED_META = [
   { indent: 8, bob: 3.3 },
 ]
 
-export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) {
+export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1, unit = 'MON' }) {
   const lanes = useMemo(() => {
     const list = racers.filter(Boolean).map((r) => ({ ...r, amount: BigInt(r.amount || 0) }))
     if (!list.length) return []
@@ -150,7 +150,7 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
                     transition: 'color .4s ease',
                   }}
                 >
-                  {formatAmount(r.amount)} MON
+                  {formatAmount(r.amount)} {unit}
                 </div>
               </div>
 
@@ -230,7 +230,7 @@ export function RaceTrack({ racers, dark = false, flashKey = null, scale = 1 }) 
                   color: '#6b2de6', letterSpacing: '.04em',
                 }}
               >
-                MON
+                {unit}
               </div>
             </div>
           </div>

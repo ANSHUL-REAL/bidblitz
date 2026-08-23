@@ -9,7 +9,7 @@ import { SQUADS, formatAmount } from '../lib/format.mjs'
  * team-forward as the demo. Purses move on sales, so the shuffle happens at each
  * SOLD.
  */
-export function TeamStandings({ squadPurses = [], leadEntity = 0, myEntity = 0, dark = false }) {
+export function TeamStandings({ squadPurses = [], leadEntity = 0, myEntity = 0, dark = false, unit = 'MON' }) {
   const rows = SQUADS
     .map((s, i) => ({ ...s, purse: BigInt(squadPurses[i] ?? 0) }))
     .sort((a, b) => (a.purse === b.purse ? 0 : b.purse > a.purse ? 1 : -1))
@@ -43,7 +43,7 @@ export function TeamStandings({ squadPurses = [], leadEntity = 0, myEntity = 0, 
             </span>
             {leading && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: r.color }}>LEADING</span>}
             <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 16, color: ink, minWidth: 96, textAlign: 'right' }}>
-              {formatAmount(r.purse)} <span style={{ fontSize: 11, color: '#6b2de6' }}>MON</span>
+              {formatAmount(r.purse)} <span style={{ fontSize: 11, color: '#6b2de6' }}>{unit}</span>
             </span>
           </div>
         )

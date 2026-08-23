@@ -1,0 +1,56 @@
+{
+  "//": [
+    "TypeScript is being adopted incrementally, not all at once.",
+    "",
+    "The bugs this codebase actually produced were not JavaScript being sloppy —",
+    "they were untyped BOUNDARIES: a state payload that grew a `duration` field",
+    "the API never sent, a `session.refresh` that did not exist, a `unit` prop",
+    "that reached one component and not the sibling next to it. Types on those",
+    "seams catch all three at build time.",
+    "",
+    "So: allowJs keeps every existing .js/.jsx file compiling untouched, and",
+    "checkJs stays OFF so they are not retro-audited. New shared contracts are",
+    "written in .ts and the JS imports them normally. strict is on, because a",
+    "half-strict type is worse than none — it reads as a guarantee it is not."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

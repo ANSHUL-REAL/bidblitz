@@ -27,8 +27,12 @@
     "viem": "^2.55.19"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "dotenv": "^17.2.0",
     "playwright-core": "^1.62.1",
-    "solc": "^0.8.36"
+    "solc": "^0.8.36",
+    "typescript": "^7.0.2"
   }
 }

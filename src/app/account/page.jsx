@@ -3,12 +3,18 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { BidBlitzMark } from '../../components/Logo'
 import { useAuth } from '../../lib/useAuth'
-import { authSignUp, authSignIn, authSignOut, listRooms, participantCounts, hasSupabase } from '../../lib/supabase'
+import { authSignUp, authSignIn, authSignOut, listRooms, participantCounts, hasSupabase, accessToken } from '../../lib/supabase'
+import { formatAmount } from '../../lib/format.mjs'
 
 /**
- * Host account. Register / sign in with email, then a dashboard of every room
- * with participant counts and links into its live history. Only the host uses
- * this — joiners bid via the QR with no login at all.
+ * An account does two separate jobs, and it is worth keeping them apart.
+ *
+ * For a HOST it is the dashboard of rooms they have run. For a PLAYER it is the
+ * only reason to sign in at all: a free room remembers you by an id in
+ * localStorage, so clearing the browser or switching phones loses every win.
+ * Logging in attaches those rooms to the account instead.
+ *
+ * Neither is required to play. Joining is still a name and a face.
  */
 export default function Account() {
   const { user, ready } = useAuth()
@@ -91,6 +97,85 @@ function AuthForms() {
   )
 }
 
+/** Free rooms this account has played, newest first. */
+function FreeHistory() {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const token = await accessToken()
+        if (!token) return
+        const res = await fetch('/api/free/history', {
+          headers: { authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const body = await res.json().catch(() => ({}))
+        if (!alive) return
+        if (!res.ok) setError(body.error || 'Could not load your history.')
+        else setData(body)
+      } catch (e) {
+        if (alive) setError(String(e?.message || e))
+      }
+    })()
+    return () => { alive = false }
+  }, [])
+
+  if (error) return <p style={{ ...p, color: '#c0392b' }}>{error}</p>
+  if (!data) return null
+
+  const { history, totals } = data
+
+  if (!history.length) {
+    return (
+      <div style={{ padding: 16, borderRadius: 14, background: '#fbfaff', border: '1px dashed #ddd6f3', marginBottom: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 15 }}>No rooms yet</div>
+        <p style={{ margin: '6px 0 0', fontSize: 13.5, color: '#6b6d78', lineHeight: 1.5 }}>
+          Free rooms you join while signed in show up here — with what you won and
+          what you spent. <Link href="/host?chain=free" style={{ color: '#5b28d9', fontWeight: 700 }}>Host one →</Link>
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+        <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20 }}>Your history</span>
+        <span style={{ fontSize: 13.5, color: '#6b6d78' }}>
+          {totals.rooms} room{totals.rooms === 1 ? '' : 's'} · <strong style={{ color: '#12703a' }}>{totals.wins} won</strong> · {formatAmount(totals.spent)} PTS spent
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gap: 8 }}>
+        {history.map((h) => (
+          <div key={h.code + h.playedAt} style={{ padding: '13px 15px', background: '#fff', borderRadius: 13, border: '1px solid #eeecf7' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12.5, fontWeight: 700, color: '#6b2de6', letterSpacing: '.1em' }}>{h.code}</span>
+              <span style={{ fontWeight: 800, fontSize: 15 }}>{h.title}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#12703a', background: '#e9f9ef', padding: '2px 7px', borderRadius: 999 }}>FREE</span>
+              {!h.closed && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#5b28d9', background: '#efeafd', padding: '2px 7px', borderRadius: 999 }}>LIVE</span>}
+              <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#9c94bd' }}>
+                {new Date(h.playedAt).toLocaleDateString()}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: '#6b6d78', flexWrap: 'wrap' }}>
+              <span><strong style={{ color: h.wins ? '#12703a' : '#12121c' }}>{h.wins}</strong> won</span>
+              <span><strong style={{ color: '#12121c' }}>{formatAmount(h.spent)}</strong> spent</span>
+              <span>{h.players} player{h.players === 1 ? '' : 's'} · {h.lots} lot{h.lots === 1 ? '' : 's'}</span>
+              {!h.closed && (
+                <Link href={`/f/${h.code}`} style={{ marginLeft: 'auto', color: '#5b28d9', fontWeight: 700 }}>Rejoin →</Link>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Dashboard({ user }) {
   const [rooms, setRooms] = useState([])
   const [counts, setCounts] = useState({})
@@ -117,6 +202,12 @@ function Dashboard({ user }) {
           <Link href="/host" className="btn-plain" style={{ padding: '11px 16px', borderRadius: 10, background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 14 }}>Host a new event →</Link>
           <button type="button" onClick={() => authSignOut()} className="btn-plain" style={{ padding: '11px 16px', borderRadius: 10, border: '2px solid #e6e2f5', background: '#fff', fontWeight: 700, fontSize: 14, color: '#6b6d78' }}>Sign out</button>
         </div>
+      </div>
+
+      <FreeHistory />
+
+      <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20, margin: '26px 0 12px' }}>
+        Rooms you hosted
       </div>
 
       {loading ? <p style={p}>Loading rooms…</p> : rooms.length === 0 ? <p style={p}>No events yet.</p> : (

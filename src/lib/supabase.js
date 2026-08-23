@@ -153,6 +153,21 @@ export async function authSignIn(email, password) {
 export async function authSignOut() {
   if (supabase) await supabase.auth.signOut()
 }
+/**
+ * The current session's access token, or null.
+ *
+ * Used to tell /api/free/* which account is joining so the room lands in a
+ * saved history. Only ever the token — the server resolves the user id from it
+ * itself, because a user id sent by a browser is a claim rather than proof.
+ */
+export async function accessToken() {
+  if (!supabase) return null
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token ?? null
+  } catch { return null }
+}
+
 export function onAuthChange(cb) {
   if (!supabase) { cb(null); return () => {} }
   supabase.auth.getUser().then(({ data }) => cb(data?.user ?? null)).catch(() => cb(null))

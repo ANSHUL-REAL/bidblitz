@@ -42,6 +42,21 @@ export async function POST(request) {
     return Response.json({ error: 'Slow down a moment.' }, { status: 429 })
   }
 
+  // Logging in is OPTIONAL and only decides whether this room lands in a saved
+  // history. The account is resolved from the bearer token by Supabase, never
+  // read from the body — a user id in a payload is a claim, not proof.
+  let userId = null
+  const auth = request.headers.get('authorization') || ''
+  if (auth.toLowerCase().startsWith('bearer ')) {
+    try {
+      const { data } = await admin.auth.getUser(auth.slice(7).trim())
+      userId = data?.user?.id ?? null
+    } catch {
+      // A bad or expired token must not block the join — it only costs history.
+      userId = null
+    }
+  }
+
   const { data: room } = await admin
     .from('free_rooms').select('mode, closed').eq('code', code).maybeSingle()
   if (!room) return Response.json({ error: 'room not found' }, { status: 404 })
@@ -51,23 +66,43 @@ export async function POST(request) {
   // from a wallet address — letting people pick collapses into one big team.
   const squad = Number(room.mode) === 1 ? squadForAddress(playerId) : null
 
-  const { data, error } = await admin.rpc('free_join', {
+  const args = {
     p_code: code,
     p_player: playerId,
     p_name: name,
     p_avatar: avatarSeed,
     p_squad: squad,
     p_purse: Number(START_PURSE_MILLI),
-  })
+  }
+
+  let { data, error } = await admin.rpc('free_join', { ...args, p_user: userId })
+
+  // Migration window: 007 is what teaches free_join about accounts. Until it is
+  // applied the 7-argument overload does not exist, and PostgREST answers
+  // PGRST202. Falling back to the 6-argument call keeps people able to JOIN —
+  // they just don't get history yet, which is the right thing to degrade.
+  // Safe to delete once 007 is applied everywhere.
+  if (error?.code === 'PGRST202') {
+    ;({ data, error } = await admin.rpc('free_join', args))
+  }
 
   if (error) {
     const m = error.message || ''
-    const status = /no_room/.test(m) ? 404 : /kicked|room_closed/.test(m) ? 403 : 500
+    // Keep these aligned with the pre-check above and with /api/free/bid: a
+    // closed room is a state conflict (409), being removed is an authorisation
+    // failure (403). Lumping them together made the same condition answer 409
+    // or 403 depending on which path happened to catch it.
+    const status =
+      /no_room/.test(m) ? 404
+      : /room_closed/.test(m) ? 409
+      : /kicked/.test(m) ? 403
+      : 500
     return Response.json({ error: friendly(m) }, { status })
   }
 
   const row = Array.isArray(data) ? data[0] : data
   return Response.json({
+    saved: Boolean(row.user_id),
     player: {
       addr: row.player_id,
       entityId: row.entity_id,
