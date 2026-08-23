@@ -225,6 +225,10 @@ export function useFreeHost(rawCode) {
     // the server and client disagree on first paint. Callers check it in an
     // effect after mount instead (see the free host page).
     startLot: (name, image, seconds) => call('start', { name, image, seconds }),
+    // The prepared catalogue: build it before the room starts, then run it.
+    addItem: (name, image) => call('addItem', { name, image }),
+    removeItem: (itemId) => call('removeItem', { itemId }),
+    startNext: (seconds) => call('startNext', { seconds }),
     sellLot: (lotId) => call('sell', { lotId }),
     closeLot: () => call('close'),
     // Ends the session. Does NOT sell whatever is live — stopping an auction

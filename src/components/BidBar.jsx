@@ -32,6 +32,12 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
   const spendable = escrow ? walletBal : purse
   const increments = escrow ? ESCROW_INCREMENTS : QUICK_INCREMENTS
 
+  // Free rooms cap what a single bid may be, so buying points wins you more
+  // lots rather than making you unbeatable on any one. 0 = no cap (MON rooms).
+  const maxBid = BigInt(state?.maxBid || 0)
+  const capped = (amount) => maxBid > 0n && amount > maxBid
+  const atCap = maxBid > 0n && highest >= maxBid
+
   const leading = state?.bidder && signer?.address &&
     state.bidder.toLowerCase() === signer.address.toLowerCase()
 
@@ -85,6 +91,9 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
     // `amount` is always highest+inc, so it can't be <= the highest we rendered;
     // real staleness (outbid since the last poll) is caught server-side. What we
     // CAN cheaply prevent is spending past what we can afford.
+    if (capped(amount)) {
+      return setFlash({ kind: 'stale', text: `Max bid here is ${formatAmount(maxBid)} ${unit}` })
+    }
     if (amount > spendable) {
       return setFlash({
         kind: 'stale',
@@ -218,7 +227,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginTop: 12 }}>
                 {increments.map((inc) => {
                   const amount = nextBid(inc)
-                  const afford = amount <= spendable
+                  const afford = amount <= spendable && !capped(amount)
                   const disabled = pending || !afford
                   return (
                     <button
@@ -247,8 +256,17 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
               </div>
 
               <div style={{ textAlign: 'center', marginTop: 9, fontSize: 12.5, color: '#9c94bd' }}>
-                {escrow ? 'wallet' : 'your purse'}{' '}
-                <strong style={{ color: '#12121c' }}>{formatAmount(spendable)} {unit}</strong>
+                {atCap ? (
+                  <span style={{ color: '#8a5a00', fontWeight: 700 }}>
+                    At this room&apos;s {formatAmount(maxBid)} {unit} max — it&apos;s a race now
+                  </span>
+                ) : (
+                  <>
+                    {escrow ? 'wallet' : 'your purse'}{' '}
+                    <strong style={{ color: '#12121c' }}>{formatAmount(spendable)} {unit}</strong>
+                    {maxBid > 0n && <span> · max {formatAmount(maxBid)}</span>}
+                  </>
+                )}
               </div>
             </>
           )}

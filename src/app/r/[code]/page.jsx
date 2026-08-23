@@ -12,6 +12,8 @@ import { roomIdFromCode, roomCode } from '../../../lib/room.mjs'
 import { formatAmount, entityLabel, entityColor } from '../../../lib/format.mjs'
 import { TeamStandings } from '../../../components/TeamStandings'
 import { isSquads } from '../../../lib/modes.mjs'
+import { addressUrl } from '../../../lib/chain.mjs'
+import { CONTRACT } from '../../../lib/tx.mjs'
 
 export default function Room({ params }) {
   const { code } = use(params)
@@ -48,6 +50,7 @@ export default function Room({ params }) {
           <>
             <WithdrawPanel signer={signer} label="Refund available" claimLabel="Claim refund" accent="#6b2de6" />
             <LiveRoom state={state} signer={signer} me={me} />
+            <PaymentTrail escrow={state?.escrow} address={signer?.address} />
           </>
         )}
       </div>
@@ -130,6 +133,44 @@ function RoomHeader({ state, code, session }) {
         </div>
       </div>
     </header>
+  )
+}
+
+/**
+ * Where the money actually went, in a real-MON room.
+ *
+ * A bidder in an escrow room is sending their own MON to a contract, and the
+ * one question they will ask afterwards is "where did it go?". Both halves of
+ * the answer are one tap away: the escrow contract that holds it, and their own
+ * address, which is where refunds and proceeds land. Hidden in play-money
+ * rooms, where no MON moves and the strip would be noise.
+ */
+function PaymentTrail({ escrow, address }) {
+  if (!escrow || !CONTRACT || !address) return null
+  const short = (a) => `${a.slice(0, 8)}…${a.slice(-6)}`
+
+  return (
+    <div
+      style={{
+        margin: '18px auto 0', maxWidth: 620, padding: '12px 14px', borderRadius: 12,
+        background: '#fff', border: '1px solid #eeecf7',
+        display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12.5, color: '#6b6d78',
+      }}
+    >
+      <span>
+        Bids are escrowed by{' '}
+        <a href={addressUrl(CONTRACT)} target="_blank" rel="noreferrer" style={{ fontFamily: "'DM Mono',monospace", color: '#5b28d9', fontWeight: 700 }}>
+          {short(CONTRACT)} ↗
+        </a>
+      </span>
+      <span>
+        Your wallet{' '}
+        <a href={addressUrl(address)} target="_blank" rel="noreferrer" style={{ fontFamily: "'DM Mono',monospace", color: '#5b28d9', fontWeight: 700 }}>
+          {short(address)} ↗
+        </a>
+      </span>
+    </div>
   )
 }
 

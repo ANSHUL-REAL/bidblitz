@@ -68,6 +68,38 @@ export async function POST(request) {
       return Response.json({ ok: true, lot: shapeLot(lot) })
     }
 
+    // Queue management — the host's prepared catalogue.
+    if (action === 'addItem') {
+      const name = sanitizeText(body?.name, 60)
+      if (!name) return Response.json({ error: 'Name required' }, { status: 400 })
+      const { data, error } = await admin.rpc('free_add_item', {
+        p_code: code, p_token_hash: hash,
+        p_name: name, p_image: String(body?.image || '').slice(0, 500),
+      })
+      if (error) throw error
+      const row = Array.isArray(data) ? data[0] : data
+      return Response.json({ ok: true, item: shapeItem(row) })
+    }
+
+    if (action === 'removeItem') {
+      const { error } = await admin.rpc('free_remove_item', {
+        p_code: code, p_token_hash: hash, p_item: String(body?.itemId || ''),
+      })
+      if (error) throw error
+      return Response.json({ ok: true })
+    }
+
+    // Continue: take the next queued item and open it. One RPC so two taps
+    // cannot grab the same item or open two lots.
+    if (action === 'startNext') {
+      const { data, error } = await admin.rpc('free_start_next', {
+        p_code: code, p_token_hash: hash, p_seconds: clampDuration(body?.seconds),
+      })
+      if (error) throw error
+      const lot = Array.isArray(data) ? data[0] : data
+      return Response.json({ ok: true, lot: shapeLot(lot) })
+    }
+
     if (action === 'close') {
       const { error } = await admin.rpc('free_close_lot', { p_code: code, p_token_hash: hash })
       if (error) throw error
@@ -105,6 +137,9 @@ const clampDuration = (v) => {
   return Math.min(MAX_DURATION, Math.max(5, Math.round(n)))
 }
 
+const shapeItem = (i) =>
+  i && { id: i.id, name: i.name, image: i.image_url, order: i.sort_order, lotId: i.lot_id }
+
 const shapeLot = (l) =>
   l && {
     lotId: l.lot_id,
@@ -117,18 +152,27 @@ const shapeLot = (l) =>
   }
 
 function statusFor(m) {
+  if (/PGRST202|Could not find the function/i.test(m)) return 503
   if (/not_host/.test(m)) return 403
   if (/no_room|no_lot|no_player/.test(m)) return 404
-  if (/lot_open|room_closed/.test(m)) return 409
+  if (/lot_open|room_closed|queue_empty/.test(m)) return 409
+  if (/bad_name/.test(m)) return 400
   return 500
 }
 
 function friendly(m) {
+  // A function the database has never heard of means a migration was not
+  // applied. Say so, rather than 'that did not work'.
+  if (/PGRST202|Could not find the function/i.test(m)) {
+    return 'This needs migration 008 applied in Supabase (the item queue).'
+  }
   if (/not_host/.test(m)) return 'Only the host of this room can do that.'
   if (/no_room/.test(m)) return 'That room no longer exists.'
   if (/no_lot/.test(m)) return 'No such lot.'
   if (/no_player/.test(m)) return 'That player is not in this room.'
   if (/lot_open/.test(m)) return 'Finish the open lot first.'
+  if (/queue_empty/.test(m)) return 'Nothing left in the queue — add an item.'
+  if (/bad_name/.test(m)) return 'Give the item a name.'
   if (/room_closed/.test(m)) return 'This room has ended.'
   if (/bad_duration/.test(m)) return 'Pick a length between 5 and 300 seconds.'
   return 'That did not work.'

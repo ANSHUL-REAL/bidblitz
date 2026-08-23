@@ -10,6 +10,8 @@ import { useSession } from '../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../lib/room.mjs'
 import { formatAmount } from '../lib/format.mjs'
 import { CATEGORIES, modeForCategories, isCustomCat, makeCustomCat, catLabel } from '../lib/categories.mjs'
+import { TREASURY, hasTreasury } from '../lib/topups.mjs'
+import { addressUrl } from '../lib/chain.mjs'
 
 const EASE = 'cubic-bezier(.2,.7,.2,1)'
 
@@ -41,6 +43,7 @@ export default function Home() {
       <HostOrJoin />
       <About />
       <Faq />
+      <FundProject />
       <Footer />
     </div>
   )
@@ -566,6 +569,72 @@ function Faq() {
 }
 
 /* ---------------------------------------------------------------- footer --- */
+
+/**
+ * Support panel, above the footer.
+ *
+ * BidBlitz has no treasury and takes no cut of anything, so free rooms cost the
+ * project real money to keep running. This is the address that pays for it —
+ * the SAME one point packs go to, deliberately, so there is one thing to verify
+ * on the explorer rather than two.
+ *
+ * The address only. There is no private key in this repo and there never will
+ * be one: a key here would let anyone who reads the page spend the funds.
+ */
+function FundProject() {
+  const [copied, setCopied] = useState(false)
+  if (!hasTreasury) return null
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(TREASURY)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {}
+  }
+
+  return (
+    <section style={{ background: '#17162a', color: '#fff' }}>
+      <div className="pad-x" style={{ maxWidth: 720, margin: '0 auto', paddingTop: 52, paddingBottom: 52, textAlign: 'center' }}>
+        <div style={{ fontSize: 12, letterSpacing: '.22em', color: '#8a83a8', fontWeight: 800 }}>
+          FUND THIS PROJECT
+        </div>
+        <h2
+          style={{
+            margin: '12px 0 0', fontFamily: "'Archivo',sans-serif", fontWeight: 900,
+            fontSize: 'clamp(26px,3.4vw,40px)', letterSpacing: '-.03em', lineHeight: 1.05,
+          }}
+        >
+          Free rooms stay free because someone pays for them
+        </h2>
+        <p style={{ margin: '12px auto 0', fontSize: 16, lineHeight: 1.55, color: 'rgba(255,255,255,.7)', maxWidth: '54ch' }}>
+          BidBlitz takes no cut, holds no treasury, and never touches a bidder&apos;s
+          wallet. If it has been useful, send some MON — it goes to the same address
+          point packs do, so you can check every rupee of it on the explorer.
+        </p>
+
+        <button
+          type="button" onClick={copy} className="btn-plain"
+          style={{
+            marginTop: 22, padding: '15px 20px', borderRadius: 14,
+            border: '1px dashed rgba(185,166,255,.45)', background: 'rgba(185,166,255,.08)',
+            fontFamily: "'DM Mono',monospace", fontSize: 13.5, color: '#d9cfff',
+            wordBreak: 'break-all', maxWidth: '100%', cursor: 'pointer',
+          }}
+        >
+          {copied ? 'Copied ✓' : TREASURY}
+        </button>
+
+        <div style={{ marginTop: 14, display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', fontSize: 14 }}>
+          <a href={addressUrl(TREASURY)} target="_blank" rel="noreferrer" style={{ color: '#b9a6ff', fontWeight: 700 }}>
+            View on the explorer ↗
+          </a>
+          <span style={{ color: 'rgba(255,255,255,.4)' }}>Monad testnet · MON only</span>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 function Footer() {
   return (

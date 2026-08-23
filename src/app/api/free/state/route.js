@@ -39,7 +39,7 @@ export async function GET(request) {
   try {
     const { data: room, error } = await admin
       .from('free_rooms')
-      .select('code, title, mode, categories, open_lot, lot_count, closed, host_name')
+      .select('code, title, mode, categories, open_lot, lot_count, closed, host_name, max_bid')
       .eq('code', code)
       .maybeSingle()
 
@@ -80,6 +80,9 @@ export async function GET(request) {
       host: room.host_name || null,
       mode: Number(room.mode || 0),
       categories: room.categories || [],
+      // Sent to everyone: the bid bar has to grey out steps above it, or
+      // people tap a button that can only be refused.
+      maxBid: milliToWei(room.max_bid ?? 0),
       closed: Boolean(room.closed),
       openLotId: room.open_lot || 0,
       totalLots: room.lot_count || 0,
@@ -101,6 +104,10 @@ export async function GET(request) {
       chainNow: Math.floor(now / 1000),
       racers,
       bids: full ? await lotBids(code, lotId, byId) : undefined,
+      queue: full ? await roomQueue(code) : undefined,
+      // Who won what. Needed for the closing board, and cheap enough to
+      // include for the host console too. Omitted from the phones' poll.
+      results: (full || room.closed) ? await roomResults(code, byId) : undefined,
       players: players.map((p) => ({
         addr: p.player_id,
         entityId: p.entity_id,
@@ -172,6 +179,49 @@ async function lotBids(code, lotId, byId) {
     entityId: byId.get(b.player_id)?.entity_id ?? 0,
     amount: milliToWei(b.amount),
     at: b.created_at,
+  }))
+}
+
+/**
+ * Every lot that has been settled, with who took it.
+ *
+ * The closing board is "who won which items", not a column of totals — an
+ * auction's story is the individual lots, and a room wants to see the list
+ * read back at the end.
+ */
+async function roomResults(code, byId) {
+  const { data } = await admin
+    .from('free_lots')
+    .select('lot_id, name, image_url, high_bid, high_player, sold')
+    .eq('room_code', code)
+    .eq('sold', true)
+    .order('lot_id', { ascending: true })
+    .limit(200)
+
+  return (data || [])
+    .filter((l) => l.high_player && BigInt(l.high_bid || 0) > 0n)
+    .map((l) => ({
+      lotId: l.lot_id,
+      name: l.name,
+      image: l.image_url,
+      winner: l.high_player,
+      winnerName: byId.get(l.high_player)?.name || null,
+      winnerSeed: byId.get(l.high_player)?.avatar_seed || l.high_player,
+      amount: milliToWei(l.high_bid),
+    }))
+}
+
+/** The host's prepared catalogue: what is still to come, and what already ran. */
+async function roomQueue(code) {
+  const { data } = await admin
+    .from('free_items')
+    .select('id, name, image_url, sort_order, lot_id')
+    .eq('room_code', code)
+    .order('sort_order', { ascending: true })
+    .limit(100)
+
+  return (data || []).map((i) => ({
+    id: i.id, name: i.name, image: i.image_url, order: i.sort_order, lotId: i.lot_id,
   }))
 }
 

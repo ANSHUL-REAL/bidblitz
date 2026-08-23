@@ -70,19 +70,27 @@ function Console({ code, state, host, refetch }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [duration, setDuration] = useState(DEFAULT_DURATION)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const isOpen = Number(state?.openLotId || 0) !== 0
-  const live = isOpen && remaining > 0
   const highest = BigInt(state?.highestBid || 0)
-  const urgent = live && remaining <= 5
+  const urgent = isOpen && remaining <= 5
   const closed = Boolean(state?.closed)
+
   const players = state?.players ?? []
   const bids = state?.bids ?? []
+  const queue = state?.queue ?? []
+  const results = state?.results ?? []
+  const pending = queue.filter((q) => !q.lotId)
 
   const leaderName = state?.bidder
     ? players.find((p) => p.addr === state.bidder)?.name || shortAddress(state.bidder)
     : null
+
+  // Three states, and the host only ever needs the one they are in: still
+  // setting up, a lot running, or a lot just finished with more to come.
+  const justFinished = !closed && !isOpen && Number(state?.lotId || 0) > 0
 
   async function run(fn, label) {
     if (busy) return
@@ -90,8 +98,8 @@ function Console({ code, state, host, refetch }) {
     setMsg(null)
     try {
       await fn()
-      setMsg({ ok: true, text: label })
-      setTimeout(refetch, 250)
+      setMsg(label ? { ok: true, text: label } : null)
+      setTimeout(refetch, 200)
     } catch (err) {
       setMsg({ ok: false, text: String(err?.message || err).slice(0, 160) })
     } finally {
@@ -101,64 +109,60 @@ function Console({ code, state, host, refetch }) {
 
   if (closed) {
     return (
-      <main style={{ height: '100dvh', overflow: 'hidden', background: '#f1f0f9', display: 'flex', flexDirection: 'column' }}>
+      <main style={SHELL}>
         <Header code={code} state={state} closed onEnd={null} />
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
-          <FinalStandings players={players} />
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14 }}>
+          <FinalResults results={results} players={players} />
         </div>
       </main>
     )
   }
 
   return (
-    <main style={{ height: '100dvh', overflow: 'hidden', background: '#f1f0f9', display: 'flex', flexDirection: 'column' }}>
-      <Header
-        code={code} state={state} closed={false}
-        onEnd={() => setConfirmEnd(true)}
-      />
+    <main style={SHELL}>
+      <Header code={code} state={state} closed={false} onEnd={() => setConfirmEnd(true)} />
 
-      <div
-        style={{
-          flex: 1, minHeight: 0, width: '100%', maxWidth: 1080, margin: '0 auto',
-          padding: '10px 10px 10px', display: 'flex', flexDirection: 'column', gap: 10,
-        }}
-      >
-        <LiveLot
-          state={state} remaining={remaining} live={live} isOpen={isOpen}
-          urgent={urgent} highest={highest} leaderName={leaderName}
-          busy={busy} run={run} host={host}
-        />
+      <div className="stage" style={STAGE}>
+        <div style={{ display: 'grid', gap: 10, minHeight: 0, gridTemplateRows: 'auto minmax(0,1fr)' }}>
+          {isOpen ? (
+            <LiveLot
+              state={state} remaining={remaining} urgent={urgent} highest={highest}
+              leaderName={leaderName} busy={busy} run={run} host={host}
+            />
+          ) : justFinished ? (
+            <SoldCard
+              state={state} highest={highest} leaderName={leaderName}
+              nextItem={pending[0]} busy={busy}
+              onContinue={() => run(() => host.startNext(duration), null)}
+              onEnd={() => setConfirmEnd(true)}
+            />
+          ) : (
+            <SetupCard
+              count={pending.length} busy={busy} duration={duration} setDuration={setDuration}
+              onStart={() => run(() => host.startNext(duration), null)}
+            />
+          )}
 
-        {/* The two panels a host reads constantly, side by side and never
-            below the fold. Each scrolls inside itself. */}
-        <div
-          style={{
-            flex: 1, minHeight: 0, display: 'grid', gap: 10,
-            gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
-          }}
-        >
           {isOpen
             ? <BidLedger bids={bids} highest={highest} />
-            : <StartLot state={state} busy={busy} run={run} host={host} setMsg={setMsg} />}
-
-          <Standings
-            players={players} leadAddr={state?.bidder} busy={busy}
-            onKick={(addr, name) => run(() => host.kickPlayer(addr), `Removed ${name || 'player'}`)}
-          />
+            : <QueuePanel
+                queue={queue} busy={busy} state={state}
+                onAdd={(name, image) => run(() => host.addItem(name, image), null)}
+                onRemove={(id) => run(() => host.removeItem(id), null)}
+              />}
         </div>
 
-        {msg && (
-          <p
-            style={{
-              flexShrink: 0, margin: 0, padding: '9px 12px', borderRadius: 10,
-              fontSize: 13, fontWeight: 600, textAlign: 'center',
-              background: msg.ok ? '#e9f9ef' : '#fdecea', color: msg.ok ? '#12703a' : '#c0392b',
-            }}
-          >
-            {msg.text}
-          </p>
-        )}
+        <Leaderboard
+          players={players} leadAddr={state?.bidder} busy={busy}
+          onKick={(addr, name) => run(() => host.kickPlayer(addr), `Removed ${name || 'player'}`)}
+        />
       </div>
+
+      {msg && (
+        <p style={{ ...TOAST, background: msg.ok ? '#e9f9ef' : '#fdecea', color: msg.ok ? '#12703a' : '#c0392b' }}>
+          {msg.text}
+        </p>
+      )}
 
       {confirmEnd && (
         <EndRoomDialog
@@ -167,14 +171,397 @@ function Console({ code, state, host, refetch }) {
           onEnd={() => { setConfirmEnd(false); run(() => host.endRoom(), 'Auction ended') }}
         />
       )}
+
+      <style>{`
+        @media (min-width: 900px) {
+          .stage { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) !important; }
+        }
+      `}</style>
     </main>
   )
 }
+
+const SHELL = {
+  height: '100dvh', overflow: 'hidden', background: '#f1f0f9',
+  display: 'flex', flexDirection: 'column',
+}
+const STAGE = {
+  flex: 1, minHeight: 0, width: '100%', maxWidth: 1080, margin: '0 auto',
+  padding: 10, display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0,1fr)',
+}
+const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(30,20,70,.07)' }
+const PANEL = { ...CARD, padding: 13, display: 'flex', flexDirection: 'column', minHeight: 0 }
+const LABEL = { fontSize: 10, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 800, flexShrink: 0 }
+const TOAST = {
+  flexShrink: 0, margin: '0 10px 10px', padding: '9px 12px', borderRadius: 10,
+  fontSize: 13, fontWeight: 600, textAlign: 'center',
+}
+
+/** Nothing has run yet: one button, and it says what it will do. */
+function SetupCard({ count, busy, duration, setDuration, onStart }) {
+  return (
+    <section style={{ ...CARD, padding: 16, flexShrink: 0 }}>
+      <div style={LABEL}>SET UP</div>
+      <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 21, letterSpacing: '-.03em', marginTop: 4 }}>
+        {count === 0 ? 'Add what you’re auctioning' : `${count} item${count === 1 ? '' : 's'} ready`}
+      </div>
+      <p style={{ margin: '5px 0 0', fontSize: 13, color: '#6b6d78', lineHeight: 1.45 }}>
+        {count === 0
+          ? 'Build the list below — type your own or tap a preset. You can add more mid-auction.'
+          : 'Put the big screen up so people can scan in, then start.'}
+      </p>
+
+      <div style={{ display: 'flex', gap: 5, marginTop: 12, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: '#6b6d78', fontWeight: 700, marginRight: 3 }}>Each lot</span>
+        {[10, 20, 30, 60].map((sec) => (
+          <button
+            key={sec} className="btn-plain" onClick={() => setDuration(sec)}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 9, fontWeight: 800, fontSize: 12,
+              border: `2px solid ${duration === sec ? '#6b2de6' : '#e6e2f5'}`,
+              background: duration === sec ? '#efeafd' : '#fff',
+              color: duration === sec ? '#5b28d9' : '#6b6d78',
+            }}
+          >
+            {sec}s
+          </button>
+        ))}
+      </div>
+
+      <button
+        className="btn-plain" disabled={busy || count === 0} onClick={onStart}
+        style={{
+          width: '100%', marginTop: 12, padding: '17px 0', borderRadius: 13,
+          background: count === 0 ? '#eeecf7' : '#6b2de6',
+          color: count === 0 ? '#a08fd0' : '#fff',
+          fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 18, letterSpacing: '.06em',
+          boxShadow: count === 0 ? 'none' : '0 10px 24px rgba(107,45,230,.3)',
+          opacity: busy ? .6 : 1,
+        }}
+      >
+        START THE AUCTION →
+      </button>
+    </section>
+  )
+}
+
+/**
+ * The moment after a sale — the payoff of the whole lot.
+ *
+ * It says the thing out loud ("<item> sold to <name>") and then offers exactly
+ * one way forward, with the NEXT item named on the button so the host knows
+ * what they are about to announce before they press it.
+ */
+function SoldCard({ state, highest, leaderName, nextItem, busy, onContinue, onEnd }) {
+  const nobody = highest === 0n || !leaderName
+  return (
+    <section style={{ ...CARD, padding: 16, flexShrink: 0, border: `2px solid ${nobody ? '#eeecf7' : '#bfe8cf'}` }}>
+      <div style={LABEL}>LOT #{state.lotId} · {nobody ? 'UNSOLD' : 'SOLD'}</div>
+
+      {nobody ? (
+        <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20, letterSpacing: '-.03em', marginTop: 5 }}>
+          {state.lname} — no bids
+        </div>
+      ) : (
+        <>
+          <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: '-.03em', marginTop: 5, lineHeight: 1.15 }}>
+            {state.lname}
+          </div>
+          <div style={{ fontSize: 15, marginTop: 4, color: '#12703a', fontWeight: 700 }}>
+            🎉 Sold to {leaderName} for {formatAmount(highest)} PTS
+          </div>
+        </>
+      )}
+
+      {nextItem ? (
+        <button
+          className="btn-plain" disabled={busy} onClick={onContinue}
+          style={{
+            width: '100%', marginTop: 14, padding: '16px 12px', borderRadius: 13,
+            background: '#6b2de6', color: '#fff',
+            fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 17, letterSpacing: '.04em',
+            boxShadow: '0 10px 24px rgba(107,45,230,.3)', opacity: busy ? .6 : 1,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}
+        >
+          CONTINUE → {nextItem.name}
+        </button>
+      ) : (
+        <>
+          <p style={{ margin: '12px 0 0', fontSize: 13, color: '#6b6d78', lineHeight: 1.45 }}>
+            That was the last item. Add another below, or finish and show the results.
+          </p>
+          <button
+            className="btn-plain" disabled={busy} onClick={onEnd}
+            style={{
+              width: '100%', marginTop: 10, padding: '15px 0', borderRadius: 13,
+              background: '#12121c', color: '#fff', fontFamily: "'Archivo',sans-serif",
+              fontWeight: 900, fontSize: 16, letterSpacing: '.06em', opacity: busy ? .6 : 1,
+            }}
+          >
+            FINISH & SHOW RESULTS
+          </button>
+        </>
+      )}
+    </section>
+  )
+}
+
+/** The catalogue: what is coming, what already went, and how to add more. */
+function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
+  const [name, setName] = useState('')
+  const [image, setImage] = useState('')
+  const [showPresets, setShowPresets] = useState(false)
+
+  const isFantasy = Number(state?.mode) === 1
+  const presets = useMemo(
+    () => (isFantasy ? FANTASY_ITEMS : itemsForCategories(state?.categories?.length ? state.categories : ['memes'])),
+    [isFantasy, state?.categories],
+  )
+
+  const pending = queue.filter((q) => !q.lotId)
+  const done = queue.filter((q) => q.lotId)
+
+  const add = (n, img) => {
+    const clean = sanitizeLotName(n)
+    if (!clean) return
+    onAdd(clean, img || '')
+    setName(''); setImage('')
+  }
+
+  return (
+    <section style={PANEL}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={LABEL}>UP NEXT</span>
+        <span style={{ fontSize: 12, color: '#9c94bd' }}>{pending.length} queued</span>
+      </div>
+
+      {/* Typing your own comes first — it is what a host reaches for. */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 9, flexShrink: 0 }}>
+        <input
+          className="field" value={name} style={{ flex: 1, fontSize: 13.5, padding: '10px 11px' }}
+          onChange={(e) => setName(e.target.value)} placeholder="Add an item…" maxLength={60}
+          onKeyDown={(e) => { if (e.key === 'Enter') add(name, image) }}
+        />
+        <button
+          className="btn-plain" disabled={busy || !name.trim()} onClick={() => add(name, image)}
+          style={{
+            padding: '0 15px', borderRadius: 10, fontWeight: 800, fontSize: 13.5,
+            background: name.trim() ? '#6b2de6' : '#eeecf7', color: name.trim() ? '#fff' : '#a08fd0',
+          }}
+        >
+          Add
+        </button>
+      </div>
+      <input
+        className="field" value={image} style={{ marginTop: 6, fontSize: 12.5, padding: '8px 11px', flexShrink: 0 }}
+        onChange={(e) => setImage(e.target.value)} placeholder="Image URL (optional)" maxLength={500}
+      />
+
+      <div style={{ marginTop: 9, flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gap: 5, alignContent: 'start' }}>
+        {pending.map((q, i) => (
+          <div
+            key={q.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 9,
+              background: i === 0 ? '#efeafd' : '#fbfaff',
+              border: `1px solid ${i === 0 ? '#ddd0fa' : '#f0edfa'}`, flexShrink: 0,
+            }}
+          >
+            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#9c94bd', width: 16 }}>{i + 1}</span>
+            <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {q.name}
+            </span>
+            <button
+              className="btn-plain" disabled={busy} onClick={() => onRemove(q.id)}
+              title="Remove from queue"
+              style={{ padding: '4px 7px', borderRadius: 7, background: 'transparent', color: '#bdb4d6', fontWeight: 800, fontSize: 14, lineHeight: 1 }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
+        {pending.length === 0 && (
+          <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#9c94bd', lineHeight: 1.5 }}>
+            Queue is empty. Type an item above, or tap a preset.
+          </p>
+        )}
+
+        {done.length > 0 && (
+          <>
+            <div style={{ ...LABEL, marginTop: 8 }}>ALREADY RUN</div>
+            {done.map((q) => (
+              <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', fontSize: 12, color: '#9c94bd', flexShrink: 0 }}>
+                <span style={{ textDecoration: 'line-through', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {q.name}
+                </span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <button
+        className="btn-plain" onClick={() => setShowPresets((v) => !v)}
+        style={{ flexShrink: 0, width: '100%', marginTop: 8, padding: '9px 0', borderRadius: 10, border: '2px dashed #ddd6f3', background: '#fff', color: '#5b28d9', fontWeight: 700, fontSize: 12.5 }}
+      >
+        {showPresets ? 'Hide presets' : '+ Presets'}
+      </button>
+
+      {showPresets && presets.length > 0 && (
+        <div style={{ flexShrink: 0, marginTop: 8, maxHeight: 132, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(84px,1fr))', gap: 6 }}>
+          {presets.slice(0, 24).map((item) => {
+            const label = typeof item === 'string' ? item : item.name
+            return (
+              <button
+                key={label} className="btn-plain" disabled={busy}
+                onClick={() => add(label, imageForItem(label))}
+                style={{ padding: '8px 6px', borderRadius: 9, border: '1px solid #e6e2f5', background: '#fbfaff', fontSize: 11, fontWeight: 700, color: '#2a2a3a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** The closing board: who won which items. */
+function FinalResults({ results, players }) {
+  const ranked = [...players].sort((a, b) => (b.wins - a.wins) || (BigInt(b.spent) > BigInt(a.spent) ? 1 : -1))
+  const champ = ranked[0]
+
+  return (
+    <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <div style={{ ...CARD, padding: 20, textAlign: 'center' }}>
+        <div style={LABEL}>AUCTION ENDED</div>
+        {champ && champ.wins > 0 ? (
+          <>
+            <div style={{ marginTop: 12 }}><Avatar seed={champ.avatarSeed || champ.addr} size={64} /></div>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: '-.03em', marginTop: 8 }}>
+              {champ.name || entityLabel(champ.entityId)}
+            </div>
+            <div style={{ fontSize: 14.5, color: '#12703a', fontWeight: 700 }}>
+              top bidder · {champ.wins} lot{champ.wins === 1 ? '' : 's'}
+            </div>
+          </>
+        ) : (
+          <p style={{ fontSize: 15, color: '#6b6d78', margin: '12px 0 0' }}>No lots were sold.</p>
+        )}
+      </div>
+
+      {results.length > 0 && (
+        <div style={{ ...CARD, padding: 16, marginTop: 12 }}>
+          <div style={LABEL}>WHO WON WHAT</div>
+          <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+            {results.map((r) => (
+              <div key={r.lotId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 10, background: '#fbfaff', border: '1px solid #f0edfa' }}>
+                {r.image
+                  ? <img src={r.image} alt="" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                  : <Avatar seed={r.name} size={30} />}
+                <span style={{ fontWeight: 700, fontSize: 13.5, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.name}
+                </span>
+                <span style={{ fontSize: 12.5, color: '#6b6d78', whiteSpace: 'nowrap' }}>
+                  → <strong style={{ color: '#12121c' }}>{r.winnerName || shortAddress(r.winner)}</strong>
+                </span>
+                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 14, color: '#12703a' }}>
+                  {formatAmount(r.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 /**
  * Ending the room is rare and destructive, so it lives in a dialog rather than
  * taking permanent space next to the controls a host uses every lot.
  */
+/** Ranked by lots won. Pinned beside every phase — never scrolls away. */
+function Leaderboard({ players, leadAddr, busy, onKick }) {
+  const [confirm, setConfirm] = useState(null)
+  const ranked = useMemo(
+    () => [...players].sort((a, b) => (b.wins - a.wins) || (BigInt(b.spent) > BigInt(a.spent) ? 1 : -1)),
+    [players],
+  )
+
+  return (
+    <section style={PANEL}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={LABEL}>LEADERBOARD</span>
+        <span style={{ fontSize: 12, color: '#9c94bd' }}>{players.length} in room</span>
+      </div>
+
+      {ranked.length === 0 ? (
+        <p style={{ margin: '10px 0 0', fontSize: 13, color: '#9c94bd', lineHeight: 1.5 }}>
+          Nobody yet. Put the big screen up — the QR is on it.
+        </p>
+      ) : (
+        <div style={{ marginTop: 8, flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gap: 5, alignContent: 'start' }}>
+          {ranked.map((p, i) => {
+            const leading = leadAddr && p.addr === leadAddr
+            const asking = confirm === p.addr
+            return (
+              <div
+                key={p.addr}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7, padding: '7px 8px', borderRadius: 9, flexShrink: 0,
+                  background: leading ? '#f3eeff' : '#fbfaff',
+                  border: `1px solid ${leading ? '#ddd0fa' : '#f0edfa'}`,
+                }}
+              >
+                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#9c94bd', width: 14 }}>{i + 1}</span>
+                <Avatar seed={p.avatarSeed || p.addr} size={22} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.name || entityLabel(p.entityId)}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: '#6b6d78' }}>{formatAmount(p.purse)} left</div>
+                </div>
+                <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 15, color: p.wins ? '#12703a' : '#c9c3dd', minWidth: 16, textAlign: 'right' }}>
+                  {p.wins}
+                </span>
+                {asking ? (
+                  <span style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      className="btn-plain" disabled={busy}
+                      onClick={() => { setConfirm(null); onKick(p.addr, p.name) }}
+                      style={{ padding: '4px 7px', borderRadius: 7, background: '#c0392b', color: '#fff', fontWeight: 800, fontSize: 11 }}
+                    >
+                      Remove
+                    </button>
+                    <button
+                      className="btn-plain" onClick={() => setConfirm(null)}
+                      style={{ padding: '4px 6px', borderRadius: 7, background: '#f3f1fa', color: '#6b6d78', fontWeight: 700, fontSize: 11 }}
+                    >
+                      No
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    className="btn-plain" title="Remove from room" onClick={() => setConfirm(p.addr)}
+                    style={{ padding: '4px 6px', borderRadius: 7, background: 'transparent', color: '#d5cee6', fontWeight: 800, fontSize: 13, lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function EndRoomDialog({ busy, onCancel, onEnd }) {
   return (
     <div
@@ -250,115 +637,72 @@ function Header({ code, state, closed, onEnd }) {
 }
 
 /** What is on the block right now, and the one button that matters. */
-function LiveLot({ state, remaining, live, isOpen, urgent, highest, leaderName, busy, run, host }) {
-  const pct = live && state?.duration ? (remaining / state.duration) * 100 : null
-
+/** A lot is live. Rendered only in that state, so it has one job. */
+function LiveLot({ state, remaining, urgent, highest, leaderName, busy, run, host }) {
+  const pct = state?.duration ? (remaining / state.duration) * 100 : (remaining / 30) * 100
   return (
     <section
       style={{
-        flexShrink: 0, background: '#fff', borderRadius: 16, overflow: 'hidden',
-        boxShadow: '0 10px 30px rgba(30,20,70,.07)',
-        border: `2px solid ${isOpen ? (urgent ? '#ff4d4d' : '#6b2de6') : '#eeecf7'}`,
-        transition: 'border-color .3s ease',
+        ...CARD, flexShrink: 0, overflow: 'hidden',
+        border: `2px solid ${urgent ? '#ff4d4d' : '#6b2de6'}`, transition: 'border-color .3s ease',
       }}
     >
-      {isOpen && (
-        <div style={{ height: 6, background: '#eeecf7' }}>
-          <div
-            style={{
-              height: '100%', width: `${Math.max(0, Math.min(100, pct ?? (remaining / 30) * 100))}%`,
-              background: urgent ? '#ff4d4d' : '#6b2de6', transition: 'width .2s linear',
-            }}
-          />
-        </div>
-      )}
-
+      <div style={{ height: 6, background: '#eeecf7' }}>
+        <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, pct))}%`, background: urgent ? '#ff4d4d' : '#6b2de6', transition: 'width .2s linear' }} />
+      </div>
       <div style={{ padding: 14 }}>
-        {isOpen ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <span style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 800 }}>
-                LOT #{state.lotId} · LIVE
-              </span>
-              <span
-                style={{
-                  fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 30,
-                  color: urgent ? '#ff4d4d' : '#12121c', lineHeight: 1,
-                }}
-              >
-                {formatCountdown(remaining)}s
-              </span>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={LABEL}>LOT #{state.lotId} · LIVE</span>
+          <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 28, color: urgent ? '#ff4d4d' : '#12121c', lineHeight: 1 }}>
+            {formatCountdown(remaining)}s
+          </span>
+        </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 9 }}>
-              {state.limage && (
-                <img
-                  src={state.limage} alt=""
-                  style={{ width: 46, height: 46, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }}
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
-                />
-              )}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20, letterSpacing: '-.03em', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {state.lname}
-                </div>
-                <div style={{ fontSize: 13, color: '#6b6d78', marginTop: 2 }}>
-                  {highest === 0n
-                    ? 'No bids yet'
-                    : <><strong style={{ color: '#12121c' }}>{formatAmount(highest)} PTS</strong> · {leaderName} leading</>}
-                </div>
-              </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 9 }}>
+          {state.limage && (
+            <img
+              src={state.limage} alt=""
+              style={{ width: 46, height: 46, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }}
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+            />
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 20, letterSpacing: '-.03em', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {state.lname}
             </div>
+            <div style={{ fontSize: 13, color: '#6b6d78', marginTop: 2 }}>
+              {highest === 0n
+                ? 'No bids yet'
+                : <><strong style={{ color: '#12121c' }}>{formatAmount(highest)} PTS</strong> · {leaderName} leading</>}
+            </div>
+          </div>
+        </div>
 
-            <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>
-              <button
-                className="btn-plain" disabled={busy}
-                onClick={() => run(() => host.sellLot(state.lotId), highest === 0n ? 'Closed — no bids' : `Sold to ${leaderName}`)}
-                style={{
-                  flex: 2, padding: '16px 0', borderRadius: 13, background: '#12703a', color: '#fff',
-                  fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 19, letterSpacing: '.08em',
-                  boxShadow: '0 10px 22px rgba(18,112,58,.26)', opacity: busy ? .6 : 1,
-                }}
-              >
-                SELL
-              </button>
-              <button
-                className="btn-plain" disabled={busy}
-                onClick={() => run(() => host.closeLot(), 'Lot cancelled — nobody charged')}
-                style={{
-                  flex: 1, padding: '16px 0', borderRadius: 13, border: '2px solid #eeecf7',
-                  background: '#fff', color: '#6b6d78', fontWeight: 700, fontSize: 14,
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 800 }}>
-              {state?.lotId ? `LOT #${state.lotId} FINISHED` : 'NOTHING LIVE YET'}
-            </div>
-            {state?.lotId ? (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 18, letterSpacing: '-.02em' }}>
-                  {state.lname}
-                </div>
-                <div style={{ fontSize: 13.5, color: highest > 0n ? '#12703a' : '#6b6d78', marginTop: 2, fontWeight: highest > 0n ? 700 : 400 }}>
-                  {highest > 0n ? `Sold for ${formatAmount(highest)} PTS to ${leaderName}` : 'Went unsold'}
-                </div>
-              </div>
-            ) : (
-              <p style={{ margin: '6px 0 0', fontSize: 13.5, color: '#6b6d78', lineHeight: 1.45 }}>
-                Put something on the block — pick one on the left.
-              </p>
-            )}
-          </>
-        )}
+        <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>
+          <button
+            className="btn-plain" disabled={busy}
+            onClick={() => run(() => host.sellLot(state.lotId), null)}
+            style={{
+              flex: 2, padding: '16px 0', borderRadius: 13, background: '#12703a', color: '#fff',
+              fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 19, letterSpacing: '.08em',
+              boxShadow: '0 10px 22px rgba(18,112,58,.26)', opacity: busy ? .6 : 1,
+            }}
+          >
+            SELL
+          </button>
+          <button
+            className="btn-plain" disabled={busy}
+            onClick={() => run(() => host.closeLot(), 'Cancelled — nobody charged')}
+            style={{ flex: 1, padding: '16px 0', borderRadius: 13, border: '2px solid #eeecf7', background: '#fff', color: '#6b6d78', fontWeight: 700, fontSize: 14 }}
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </section>
   )
 }
+
 
 /**
  * Every bid on the live lot, newest first.
@@ -423,92 +767,7 @@ function BidLedger({ bids, highest }) {
 }
 
 /** Who is in the room, what they have left, and the way to remove someone. */
-function Standings({ players, leadAddr, busy, onKick }) {
-  const [confirm, setConfirm] = useState(null)
 
-  const sorted = useMemo(
-    () => [...players].sort((a, b) =>
-      (b.wins - a.wins) || (BigInt(b.spent) > BigInt(a.spent) ? 1 : -1)),
-    [players],
-  )
-
-  return (
-    <section
-      style={{
-        background: '#fff', borderRadius: 16, padding: 13, boxShadow: '0 10px 30px rgba(30,20,70,.07)',
-        display: 'flex', flexDirection: 'column', minHeight: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ fontSize: 10, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 800 }}>
-          IN THE ROOM
-        </span>
-        <span style={{ fontSize: 12.5, color: '#9c94bd' }}>{players.length}</span>
-      </div>
-
-      {sorted.length === 0 ? (
-        <p style={{ margin: '12px 0 0', fontSize: 14, color: '#9c94bd', lineHeight: 1.5 }}>
-          Nobody yet. Put the big screen up — the QR is on it.
-        </p>
-      ) : (
-        <div style={{ marginTop: 8, flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gap: 5, alignContent: 'start' }}>
-          {sorted.map((p) => {
-            const leading = leadAddr && p.addr === leadAddr
-            const asking = confirm === p.addr
-            return (
-              <div
-                key={p.addr}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7, padding: '7px 8px', borderRadius: 9, flexShrink: 0,
-                  background: leading ? '#f3eeff' : '#fbfaff',
-                  border: `1px solid ${leading ? '#ddd0fa' : '#f0edfa'}`,
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: 2, transform: 'rotate(45deg)', background: entityColor(p.entityId), flexShrink: 0 }} />
-                <Avatar seed={p.avatarSeed || p.addr} size={22} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {p.name || entityLabel(p.entityId)}
-                    {p.wins > 0 && <span style={{ marginLeft: 5, fontSize: 10.5, color: '#12703a', fontWeight: 800 }}>{p.wins}W</span>}
-                  </div>
-                  <div style={{ fontSize: 10.5, color: '#6b6d78' }}>
-                    {formatAmount(p.purse)} left
-                  </div>
-                </div>
-
-                {asking ? (
-                  <span style={{ display: 'flex', gap: 5 }}>
-                    <button
-                      className="btn-plain" disabled={busy}
-                      onClick={() => { setConfirm(null); onKick(p.addr, p.name) }}
-                      style={{ padding: '6px 9px', borderRadius: 8, background: '#c0392b', color: '#fff', fontWeight: 800, fontSize: 12 }}
-                    >
-                      Remove
-                    </button>
-                    <button
-                      className="btn-plain" onClick={() => setConfirm(null)}
-                      style={{ padding: '6px 9px', borderRadius: 8, background: '#f3f1fa', color: '#6b6d78', fontWeight: 700, fontSize: 12 }}
-                    >
-                      No
-                    </button>
-                  </span>
-                ) : (
-                  <button
-                    className="btn-plain" title="Remove from room"
-                    onClick={() => setConfirm(p.addr)}
-                    style={{ padding: '6px 9px', borderRadius: 8, background: 'transparent', color: '#bdb4d6', fontWeight: 800, fontSize: 15, lineHeight: 1 }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </section>
-  )
-}
 
 /**
  * Starting the next lot.
@@ -517,179 +776,10 @@ function Standings({ players, leadAddr, busy, onKick }) {
  * is choosing from things they already set up, not typing. The custom field is
  * still there, below, for when they want something not on the list.
  */
-function StartLot({ state, busy, run, host, setMsg }) {
-  const [name, setName] = useState('')
-  const [image, setImage] = useState('')
-  const [duration, setDuration] = useState(DEFAULT_DURATION)
-  const [custom, setCustom] = useState(false)
 
-  const isFantasy = Number(state?.mode) === 1
-  const catItems = useMemo(
-    () => (isFantasy ? FANTASY_ITEMS : itemsForCategories(state?.categories?.length ? state.categories : ['memes'])),
-    [isFantasy, state?.categories],
-  )
-
-  const start = (lotName, lotImage) => {
-    const clean = sanitizeLotName(lotName)
-    if (!clean) return setMsg({ ok: false, text: 'Name required' })
-    return run(() => host.startLot(clean, lotImage || '', duration), `Started: ${clean}`)
-      .then(() => { setName(''); setImage('') })
-  }
-
-  return (
-    <section
-      style={{
-        background: '#fff', borderRadius: 16, padding: 13, boxShadow: '0 10px 30px rgba(30,20,70,.07)',
-        display: 'flex', flexDirection: 'column', minHeight: 0,
-      }}
-    >
-      <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#6b6d78', fontWeight: 800, flexShrink: 0 }}>
-        NEXT LOT
-      </div>
-
-      <div style={{ display: 'flex', gap: 5, marginTop: 9, alignItems: 'center', flexShrink: 0 }}>
-        {[10, 20, 30, 60].map((s) => (
-          <button
-            key={s} className="btn-plain" onClick={() => setDuration(s)}
-            style={{
-              flex: 1, padding: '8px 0', borderRadius: 9, fontWeight: 800, fontSize: 12,
-              border: `2px solid ${duration === s ? '#6b2de6' : '#e6e2f5'}`,
-              background: duration === s ? '#efeafd' : '#fff',
-              color: duration === s ? '#5b28d9' : '#6b6d78',
-            }}
-          >
-            {s}s
-          </button>
-        ))}
-      </div>
-
-      {catItems.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(84px,1fr))', gap: 7, marginTop: 10, flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'start' }}>
-          {catItems.slice(0, 24).map((item) => {
-            const label = typeof item === 'string' ? item : item.name
-            const art = imageForItem(label)
-            return (
-              <button
-                key={label} className="btn-plain" disabled={busy}
-                onClick={() => start(label, art)}
-                style={{
-                  padding: 0, borderRadius: 13, overflow: 'hidden', border: '1px solid #e6e2f5',
-                  background: '#fbfaff', textAlign: 'left', opacity: busy ? .55 : 1,
-                }}
-              >
-                <div style={{ height: 46, background: '#efeafd', position: 'relative' }}>
-                  {art && (
-                    <img
-                      src={art} alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
-                    />
-                  )}
-                </div>
-                <div style={{ padding: '6px 7px', fontSize: 11, fontWeight: 700, color: '#2a2a3a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {label}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {!custom ? (
-        <button
-          className="btn-plain" onClick={() => setCustom(true)}
-          style={{ flexShrink: 0, width: '100%', marginTop: 9, padding: '10px 0', borderRadius: 10, border: '2px dashed #ddd6f3', background: '#fff', color: '#5b28d9', fontWeight: 700, fontSize: 12.5 }}
-        >
-          + Something else
-        </button>
-      ) : (
-        <div style={{ flexShrink: 0, marginTop: 10, padding: 11, borderRadius: 12, background: '#fbfaff', border: '1px solid #eeecf7' }}>
-          <input
-            className="field" value={name} autoFocus
-            onChange={(e) => setName(e.target.value)}
-            placeholder="What's on the block?" maxLength={60}
-            onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) start(name, image) }}
-          />
-          <input
-            className="field" style={{ marginTop: 8, fontSize: 13.5 }} value={image}
-            onChange={(e) => setImage(e.target.value)} placeholder="Image URL (optional)" maxLength={500}
-          />
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button
-              className="btn-plain" disabled={busy || !name.trim()}
-              onClick={() => start(name, image)}
-              style={{
-                flex: 2, padding: '14px 0', borderRadius: 11,
-                background: name.trim() ? '#6b2de6' : '#eeecf7',
-                color: name.trim() ? '#fff' : '#a08fd0', fontWeight: 800, fontSize: 15,
-              }}
-            >
-              Start it
-            </button>
-            <button
-              className="btn-plain" onClick={() => setCustom(false)}
-              style={{ flex: 1, padding: '14px 0', borderRadius: 11, background: '#f3f1fa', color: '#6b6d78', fontWeight: 700, fontSize: 14 }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
 
 /** The result screen. A session that just stops has no ending; this gives it one. */
-function FinalStandings({ players }) {
-  const sorted = [...players].sort((a, b) =>
-    (b.wins - a.wins) || (BigInt(b.spent) > BigInt(a.spent) ? 1 : -1))
-  const champ = sorted[0]
 
-  return (
-    <section style={{ background: '#fff', borderRadius: 20, padding: 24, boxShadow: '0 18px 50px rgba(30,20,70,.08)', maxWidth: 560, margin: '0 auto' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 11, letterSpacing: '.2em', color: '#6b6d78', fontWeight: 800 }}>AUCTION ENDED</div>
-        {champ && champ.wins > 0 ? (
-          <>
-            <div style={{ marginTop: 14 }}><Avatar seed={champ.avatarSeed || champ.addr} size={72} /></div>
-            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 30, letterSpacing: '-.03em', marginTop: 10 }}>
-              {champ.name || entityLabel(champ.entityId)}
-            </div>
-            <div style={{ fontSize: 15, color: '#12703a', fontWeight: 700 }}>
-              {champ.wins} lot{champ.wins === 1 ? '' : 's'} won
-            </div>
-          </>
-        ) : (
-          <p style={{ fontSize: 16, color: '#6b6d78', margin: '14px 0 0' }}>No lots were sold.</p>
-        )}
-      </div>
-
-      <div style={{ marginTop: 22, display: 'grid', gap: 7 }}>
-        {sorted.map((p, i) => (
-          <div
-            key={p.addr}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 11,
-              background: i === 0 ? '#f3eeff' : '#fbfaff', border: '1px solid #f0edfa',
-            }}
-          >
-            <span style={{ width: 20, fontFamily: "'DM Mono',monospace", fontSize: 13, color: '#9c94bd', fontWeight: 700 }}>{i + 1}</span>
-            <Avatar seed={p.avatarSeed || p.addr} size={30} />
-            <span style={{ fontWeight: 700, fontSize: 14.5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {p.name || entityLabel(p.entityId)}
-            </span>
-            <span style={{ marginLeft: 'auto', fontSize: 13, color: '#6b6d78' }}>
-              {formatAmount(p.spent)} spent
-            </span>
-            <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 17, color: p.wins ? '#12703a' : '#c9c3dd', minWidth: 28, textAlign: 'right' }}>
-              {p.wins}
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
 
 function Blocked({ title, body, action }) {
   return (

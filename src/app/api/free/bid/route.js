@@ -75,7 +75,7 @@ export async function POST(request) {
 function statusFor(m) {
   if (/not_joined|kicked/.test(m)) return 403
   if (/room_closed/.test(m)) return 409
-  if (/bid_rejected|exceeds_purse|bad_amount/.test(m)) return 409
+  if (/bid_rejected|exceeds_purse|bad_amount|over_cap/.test(m)) return 409
   return 500
 }
 
@@ -84,6 +84,9 @@ function friendly(m) {
   if (/kicked/.test(m)) return 'The host removed you from this room.'
   if (/room_closed/.test(m)) return 'This auction has ended.'
   if (/exceeds_purse/.test(m)) return 'Not enough purse left.'
+  // The pay-to-win cap. Buying points lets you contest more lots, never
+  // outbid someone infinitely on one.
+  if (/over_cap/.test(m)) return "That is over this room's max bid."
   // The one people actually hit: outbid between the poll and the tap, or the
   // clock ran out. Both read the same on stage — you were too slow.
   if (/bid_rejected/.test(m)) return 'Too slow — outbid or the lot closed.'

@@ -129,7 +129,19 @@ export default function FreeScreen({ params }) {
 
               <div style={{ fontSize: 'clamp(16px,2.4vh,26px)', marginTop: 'clamp(4px,1vh,10px)', color: '#e5e0f5' }}>
                 {sold
-                  ? winnerName ? <><strong>{winnerName}</strong> takes it</> : 'Nobody bid'
+                  ? winnerName
+                    ? (
+                        <span
+                          style={{
+                            display: 'inline-block', padding: 'clamp(7px,1.4vh,12px) clamp(14px,2vw,24px)',
+                            borderRadius: 999, background: 'rgba(126,226,168,.14)',
+                            fontSize: 'clamp(17px,2.8vh,30px)', fontWeight: 700, color: '#7ee2a8',
+                          }}
+                        >
+                          🎉 Congratulations <strong style={{ color: '#fff' }}>{winnerName}</strong> — {state.lname} is yours
+                        </span>
+                      )
+                    : 'Nobody bid'
                   : highest === 0n
                     ? 'No bids yet'
                     : <><strong>{winnerName}</strong> leading</>}

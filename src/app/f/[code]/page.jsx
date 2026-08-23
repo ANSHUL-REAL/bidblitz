@@ -482,7 +482,11 @@ function LiveRoom({ state, signer, me }) {
             {formatAmount(highest)}<span style={{ fontSize: '.3em', marginLeft: 8 }}>PTS</span>
           </div>
           <div style={{ fontSize: 16, color: '#2a2a3a', marginTop: 6 }}>
-            {highest === 0n ? 'No bids yet — open it' : `${leaderName} leading`}
+            {sold && leaderName ? (
+              <span style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, background: '#e9f9ef', color: '#12703a', fontWeight: 800 }}>
+                🎉 {state.lname} sold to {leaderName}
+              </span>
+            ) : highest === 0n ? 'No bids yet — open it' : `${leaderName} leading`}
           </div>
         </div>
       </div>
