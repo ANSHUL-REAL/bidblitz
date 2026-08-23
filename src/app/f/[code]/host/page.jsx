@@ -767,10 +767,16 @@ function Header({ code, state, closed, onEnd, onMirror }) {
         {/* New tab, not a navigation: a host who taps this mid-lot must not
             lose the console they are running the auction from. */}
         <a
+          href={`/f/${code}/history`} target="_blank" rel="noreferrer"
+          style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}
+        >
+          History ↗
+        </a>
+        <a
           href={`/f/${code}/screen`} target="_blank" rel="noreferrer"
           style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}
         >
-          Open ↗
+          Screen ↗
         </a>
         {onEnd && (
           <button

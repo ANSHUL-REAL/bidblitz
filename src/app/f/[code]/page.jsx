@@ -207,9 +207,18 @@ function RoomHeader({ state, code, session }) {
               Host controls
             </Link>
           )}
-          <Link href={`/f/${code}/screen`} style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}>
-            Big screen
-          </Link>
+          <a
+            href={`/f/${code}/history`} target="_blank" rel="noreferrer"
+            style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}
+          >
+            History ↗
+          </a>
+          <a
+            href={`/f/${code}/screen`} target="_blank" rel="noreferrer"
+            style={{ fontSize: 14, fontWeight: 700, color: '#6b6d78' }}
+          >
+            Screen ↗
+          </a>
           {session.player && (
             <button
               className="btn-plain"
