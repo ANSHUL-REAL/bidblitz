@@ -9,6 +9,7 @@ import { useSession } from '../../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../../lib/room.mjs'
 import { upsertRoom } from '../../lib/supabase'
 import { makeHostToken, hashToken, saveHostToken, normalizeCode, isValidCode, freeUrl } from '../../lib/freeRoom.mjs'
+import { useAuth } from '../../lib/useAuth'
 
 /** Poll the lobby for the room this wallet just created (we never await receipts). */
 async function waitForMyRoom(address, title, tries = 25) {
@@ -167,6 +168,7 @@ function JoinTab({ onGo }) {
  */
 function CreateTab({ session, router }) {
   const { signer } = session
+  const { user, ready: authReady } = useAuth()
   const params = useSearchParams()
   const [chain, setChain] = useState(params.get('chain') === 'mon' ? 'mon' : 'free')
   const [kind, setKind] = useState(params.get('kind') === 'fantasy' ? 'fantasy' : 'auction')
@@ -359,7 +361,32 @@ function CreateTab({ session, router }) {
           : 'Your wallet becomes the host — only it can start and sell lots. You pay gas for each lot you start and sell; bidders pay their own.'}
       </p>
 
-      {isFree || signer ? (
+      {!authReady ? null : !user ? (
+        /* Hosting requires an account for BOTH room types. A free room is
+           otherwise owned by nothing but a token in one browser — clear it and
+           the room is unrunnable — and this is what puts a room in the history
+           at /account. Joining still needs no account at all. */
+        <div style={{ marginTop: 18, padding: 18, borderRadius: 16, background: '#fff', border: '1px dashed #cdc2f0', textAlign: 'center' }}>
+          <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 18, letterSpacing: '-.02em' }}>
+            Sign in to host
+          </div>
+          <p style={{ margin: '7px auto 0', fontSize: 13.5, color: '#6b6d78', lineHeight: 1.5, maxWidth: '42ch' }}>
+            An account keeps your rooms and results, and lets you run a room from
+            more than one device. <strong>People joining still need nothing</strong> —
+            just a name and a face.
+          </p>
+          <Link
+            href="/account?next=%2Fhost"
+            className="btn-plain"
+            style={{
+              display: 'inline-block', marginTop: 14, padding: '14px 22px', borderRadius: 12,
+              background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 15,
+            }}
+          >
+            Sign in or create an account →
+          </Link>
+        </div>
+      ) : isFree || signer ? (
         <button
           type="button"
           onClick={create}

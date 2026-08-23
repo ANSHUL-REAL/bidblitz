@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { BidBlitzMark } from '../../components/Logo'
 import { useAuth } from '../../lib/useAuth'
-import { authSignUp, authSignIn, authSignOut, listRooms, participantCounts, hasSupabase, accessToken } from '../../lib/supabase'
+import { authSignUp, authSignIn, authSignOut, authSignInWithGoogle, listRooms, participantCounts, hasSupabase, accessToken } from '../../lib/supabase'
 import { formatAmount } from '../../lib/format.mjs'
 
 /**
@@ -17,13 +18,32 @@ import { formatAmount } from '../../lib/format.mjs'
  * Neither is required to play. Joining is still a name and a face.
  */
 export default function Account() {
+  return (
+    <Suspense fallback={<Shell><p style={p}>Loading…</p></Shell>}>
+      <AccountInner />
+    </Suspense>
+  )
+}
+
+function AccountInner() {
   const { user, ready } = useAuth()
+  const params = useSearchParams()
+  const router = useRouter()
+  // Only ever a same-site path. An absolute URL here would turn the login into
+  // an open redirect.
+  const raw = params.get('next') || ''
+  const next = /^\/[^/]/.test(raw) ? raw : ''
+
+  // Signed in and arrived here mid-journey: continue where they were going.
+  useEffect(() => {
+    if (ready && user && next) router.replace(next)
+  }, [ready, user, next, router])
 
   if (!hasSupabase) {
     return <Shell><p style={p}>Accounts need Supabase configured (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY).</p></Shell>
   }
   if (!ready) return <Shell><p style={p}>Loading…</p></Shell>
-  if (!user) return <Shell><AuthForms /></Shell>
+  if (!user) return <Shell><AuthForms next={next} /></Shell>
   return <Shell><Dashboard user={user} /></Shell>
 }
 
@@ -44,7 +64,47 @@ function Shell({ children }) {
   )
 }
 
-function AuthForms() {
+function GoogleButton({ next }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  return (
+    <>
+      <button
+        type="button" disabled={busy}
+        onClick={async () => {
+          setBusy(true); setErr('')
+          const { error } = await authSignInWithGoogle(next || '/host')
+          // On success the browser is already navigating to Google, so only a
+          // failure ever gets to run this.
+          if (error) { setErr(error); setBusy(false) }
+        }}
+        className="btn-plain"
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          padding: '14px 18px', borderRadius: 12, border: '2px solid #e6e2f5',
+          background: '#fff', fontWeight: 800, fontSize: 15, color: '#12121c',
+          opacity: busy ? .6 : 1,
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.5 13.2l7.8 6.1C12.2 13.2 17.6 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.3-4.6 7l7.6 5.9c4.4-4.1 6.7-10.1 6.7-17.4z"/>
+          <path fill="#FBBC05" d="M10.3 28.7c-.5-1.4-.8-2.9-.8-4.7s.3-3.3.8-4.7l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.5 10.8l7.8-6.1z"/>
+          <path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.4-5.5l-7.6-5.9c-2.1 1.4-4.8 2.3-7.8 2.3-6.4 0-11.8-3.7-13.7-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/>
+        </svg>
+        Continue with Google
+      </button>
+      {err && <p style={{ margin: '10px 0 0', color: '#c0392b', fontSize: 13.5 }}>{err}</p>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 14px' }}>
+        <span style={{ flex: 1, height: 1, background: '#eeecf7' }} />
+        <span style={{ fontSize: 12, color: '#9c94bd', fontWeight: 700, letterSpacing: '.1em' }}>OR EMAIL</span>
+        <span style={{ flex: 1, height: 1, background: '#eeecf7' }} />
+      </div>
+    </>
+  )
+}
+
+function AuthForms({ next }) {
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

@@ -150,6 +150,31 @@ export async function authSignIn(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   return { data, error: error?.message || null }
 }
+/**
+ * Google sign-in, via Supabase's OAuth flow.
+ *
+ * Redirects away and comes back with a session, so `redirectTo` has to be a URL
+ * this app actually serves AND one listed in the project's redirect allow-list —
+ * Supabase refuses anything else, which is what stops an attacker sending the
+ * callback (and the session) to a site they control.
+ *
+ * `next` survives the round trip so someone who clicked "host a room" lands back
+ * on the host form rather than a generic account page.
+ */
+export async function authSignInWithGoogle(next = '/host') {
+  if (!supabase) return { error: 'Supabase not configured' }
+  try {
+    const redirectTo = `${window.location.origin}/account?next=${encodeURIComponent(next)}`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+    return { error: error?.message || null }
+  } catch (e) {
+    return { error: String(e?.message || e) }
+  }
+}
+
 export async function authSignOut() {
   if (supabase) await supabase.auth.signOut()
 }
