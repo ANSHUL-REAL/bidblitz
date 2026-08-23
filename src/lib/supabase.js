@@ -29,11 +29,17 @@ try {
 export const supabase = _client
 export const hasSupabase = Boolean(_client)
 
-// Only these emails may HOST the featured event; everyone else can join only.
-// Override with NEXT_PUBLIC_HOST_EMAILS (comma-separated) in .env.
-const HOST_EMAILS = (process.env.NEXT_PUBLIC_HOST_EMAILS || 'anshulnautiyal2006@gmail.com')
-  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
-export const isHostEmail = (email) => HOST_EMAILS.includes(String(email || '').toLowerCase())
+/**
+ * Anyone can host. This used to be an email allowlist gating a single featured
+ * event; it is gone because the product is now "anyone hosts an auction".
+ *
+ * There was never any security in it anyway — the contract records the room's
+ * creator address and startLot/sellLot revert for anybody else, so the wallet
+ * has always been the real credential. The allowlist only hid UI, and its one
+ * genuine effect was keeping strangers away from the airdrop faucet, which no
+ * longer exists.
+ */
+export const isHostEmail = () => true
 
 const ok = (data) => ({ data, error: null })
 const fail = (error) => ({ data: null, error })

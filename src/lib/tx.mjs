@@ -1,6 +1,6 @@
 import { encodeFunctionData, createPublicClient, http, fallback } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { monad, PUBLIC_RPCS, POLLING_INTERVAL, MAX_FEE, MAX_PRIORITY_FEE, GAS } from './chain.mjs'
+import { monad, PUBLIC_RPCS, POLLING_INTERVAL, MAX_FEE, MAX_PRIORITY_FEE, GAS, TYPICAL_GAS_PRICE } from './chain.mjs'
 import { BIDBLITZ_ABI } from './abi.mjs'
 
 export const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT
@@ -143,9 +143,12 @@ export async function withdrawableOf(address) {
 
 /**
  * Monad's reserve-balance rule computes an account's inflight gas budget from
- * the execution state 3 blocks back. A wallet funded at block B had zero
- * balance at B-3, so its budget is zero and its first bid is EXCLUDED at
- * consensus — silently, with no receipt and no revert. Wait it out.
+ * the execution state 3 blocks back. A wallet that first received MON at block
+ * B had zero balance at B-3, so its budget is zero and its first bid is
+ * EXCLUDED at consensus — silently, with no receipt and no revert. Wait it out.
+ *
+ * This still matters even though nobody is airdropped any more: a bidder who
+ * tops up from a faucet or an exchange mid-room hits exactly the same window.
  */
 export async function waitForArming(fromBlock, blocks = 4) {
   const target = BigInt(fromBlock) + BigInt(blocks)
@@ -156,15 +159,41 @@ export async function waitForArming(fromBlock, blocks = 4) {
   return false
 }
 
-export async function requestFunding(address, force = false, roomCode = null) {
-  const res = await fetch('/api/fund', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ address, force, roomCode }),
-  })
-  if (!res.ok) {
-    const { error } = await res.json().catch(() => ({}))
-    throw new Error(error || `funding failed (${res.status})`)
+/**
+ * Gas floor for a bidder. Enough for joinSolo + a handful of bids at the padded
+ * MAX_FEE, so we can tell someone "you need MON" BEFORE they tap BID and lose a
+ * lot to a silently-excluded transaction.
+ *
+ * Deliberately generous: Monad bills on gas_limit rather than gas used, so the
+ * worst case is what has to be affordable, not the average.
+ */
+export const MIN_GAS_BALANCE = (GAS.joinSolo + GAS.placeBid * 5n) * TYPICAL_GAS_PRICE
+
+/**
+ * The host's floor — a whole lot's worth of host transactions (startLot +
+ * sellLot) times five lots. Hosts spend far more gas than bidders and, unlike a
+ * bidder, a host who runs dry mid-lot strands the whole room.
+ */
+export const HOST_GAS_FLOOR = (GAS.startLot + GAS.sellLot) * 5n * TYPICAL_GAS_PRICE
+
+/**
+ * Watch an address until it can pay for its own gas, then wait out the
+ * reserve-balance window. Resolves false if it never arrives.
+ *
+ * Replaces the old requestFunding() faucet: BidBlitz no longer holds a treasury
+ * that pays for other people's transactions. Participants bring their own MON,
+ * so the only thing left to do is notice when it lands.
+ */
+export async function waitForFunds(signer, { timeoutMs = 180_000, onTick } = {}) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const balance = await signer.balance().catch(() => 0n)
+    if (balance >= MIN_GAS_BALANCE) {
+      await waitForArming(await readClient.getBlockNumber(), 4)
+      return true
+    }
+    onTick?.(balance)
+    await new Promise((r) => setTimeout(r, 1500))
   }
-  return res.json()
+  return false
 }

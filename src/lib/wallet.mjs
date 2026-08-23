@@ -4,15 +4,18 @@ import { BIDBLITZ_ABI } from './abi.mjs'
 import { CONTRACT, readClient } from './tx.mjs'
 
 /**
- * Bring-your-own-wallet path, for anyone who already has one.
+ * The wallet path for every on-chain room — no longer the secondary option.
  *
  * Works with any injected EIP-1193 provider — MetaMask, Rabby, OKX, Backpack.
  * NOTE: Lace is a Cardano wallet and does not implement EIP-1193, so it cannot
  * talk to Monad (or any EVM chain) at all.
  *
- * This is deliberately the secondary path. The burner wallet stays the default
- * because it gets a stranger bidding in about fifteen seconds, and a wallet
- * popup per bid would wreck a twenty-second lot.
+ * This used to sit underneath a name+password burner that the platform funded
+ * by airdrop. Both halves of that were wrong for a public app: the platform was
+ * buying strangers' gas, and a wallet derived from one keccak of a guessable
+ * password is not somewhere real MON should sit. Rooms that want the
+ * fifteen-second, no-wallet join are now FREE rooms, which are off-chain and
+ * hold no value at all.
  */
 
 // 10143
@@ -61,10 +64,27 @@ export class InjectedSigner {
     this.nonce = null
   }
 
+  /**
+   * Silent reconnect on page load — eth_accounts returns the already-authorised
+   * account WITHOUT raising a popup, so a bidder who reloads mid-lot lands back
+   * in the room instead of being asked to approve again.
+   * Returns null when nothing is connected; never throws.
+   */
+  static async restore() {
+    const provider = getProvider()
+    if (!provider) return null
+    try {
+      const accounts = await provider.request({ method: 'eth_accounts' })
+      return accounts?.length ? new InjectedSigner(provider, accounts[0]) : null
+    } catch {
+      return null
+    }
+  }
+
   static async connect() {
     const provider = getProvider()
     if (!provider) {
-      throw new Error('No EVM wallet found. Install MetaMask, or just use a name and password.')
+      throw new Error('No EVM wallet found. Install MetaMask, Rabby, OKX or Backpack — or join a Free room, which needs no wallet.')
     }
 
     const accounts = await provider.request({ method: 'eth_requestAccounts' })

@@ -1,5 +1,4 @@
-import { createPublicClient, createWalletClient, http, fallback } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { createPublicClient, http, fallback } from 'viem'
 import { monad, rpcUrls, POLLING_INTERVAL } from './chain.mjs'
 import { BIDBLITZ_ABI } from './abi.mjs'
 
@@ -20,19 +19,15 @@ export const publicClient = createPublicClient({
   pollingInterval: POLLING_INTERVAL,
 })
 
-export const relayerKeys = () =>
-  (process.env.RELAYER_KEYS || '').split(',').map((k) => k.trim()).filter(Boolean)
-
-export const relayerWallet = (key) =>
-  createWalletClient({ account: privateKeyToAccount(key), chain: monad, transport })
-
 /**
- * Deterministic relayer assignment. Stateless-safe across Vercel instances, and
- * a retry always lands on the same relayer whose nonce sequence it already
- * advanced — which round-robin would not guarantee.
+ * There is deliberately no wallet on the server.
+ *
+ * BidBlitz used to run an 8-relayer pool that airdropped MON to every joiner
+ * out of a MASTER_KEY treasury. That made the platform pay for strangers' gas,
+ * and since /api/fund had no auth it was an open faucet the moment the URL went
+ * public. Participants now bring their own MON, so no server-held key can spend
+ * anything — the only key left in the repo is the deploy script's, used once.
  */
-export const relayerIndexFor = (address, count) =>
-  parseInt(address.slice(-2), 16) % count
 
 /** BigInt is not JSON-serialisable; the whole payload crosses the wire as strings. */
 export const jsonSafe = (v) => {

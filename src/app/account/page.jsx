@@ -11,14 +11,14 @@ import { authSignUp, authSignIn, authSignOut, listRooms, participantCounts, hasS
  * this — joiners bid via the QR with no login at all.
  */
 export default function Account() {
-  const { user, ready, isHost } = useAuth()
+  const { user, ready } = useAuth()
 
   if (!hasSupabase) {
     return <Shell><p style={p}>Accounts need Supabase configured (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY).</p></Shell>
   }
   if (!ready) return <Shell><p style={p}>Loading…</p></Shell>
   if (!user) return <Shell><AuthForms /></Shell>
-  return <Shell><Dashboard user={user} isHost={isHost} /></Shell>
+  return <Shell><Dashboard user={user} /></Shell>
 }
 
 const p = { color: '#6b6d78', fontSize: 15 }
@@ -91,7 +91,7 @@ function AuthForms() {
   )
 }
 
-function Dashboard({ user, isHost }) {
+function Dashboard({ user }) {
   const [rooms, setRooms] = useState([])
   const [counts, setCounts] = useState({})
   const [loading, setLoading] = useState(true)
@@ -111,19 +111,13 @@ function Dashboard({ user, isHost }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <div>
           <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 26 }}>Your events</div>
-          <div style={{ fontSize: 13, color: '#6b6d78' }}>{user.email}{isHost ? ' · host' : ''}</div>
+          <div style={{ fontSize: 13, color: '#6b6d78' }}>{user.email}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {isHost && <Link href="/host" className="btn-plain" style={{ padding: '11px 16px', borderRadius: 10, background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 14 }}>Host a new event →</Link>}
+          <Link href="/host" className="btn-plain" style={{ padding: '11px 16px', borderRadius: 10, background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 14 }}>Host a new event →</Link>
           <button type="button" onClick={() => authSignOut()} className="btn-plain" style={{ padding: '11px 16px', borderRadius: 10, border: '2px solid #e6e2f5', background: '#fff', fontWeight: 700, fontSize: 14, color: '#6b6d78' }}>Sign out</button>
         </div>
       </div>
-
-      {!isHost && (
-        <div style={{ padding: 14, borderRadius: 12, background: '#fff7e6', border: '1px solid #f2e2b8', color: '#8a5a00', fontSize: 13.5, marginBottom: 16 }}>
-          This account can watch histories but isn't a host. Hosting the featured event is restricted.
-        </div>
-      )}
 
       {loading ? <p style={p}>Loading rooms…</p> : rooms.length === 0 ? <p style={p}>No events yet.</p> : (
         <div style={{ display: 'grid', gap: 10 }}>

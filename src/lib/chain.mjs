@@ -60,6 +60,16 @@ export const GAS = {
   finalize: 260_000n,   // permissionless settle after expiry (incl. badge mint + credit)
 }
 
+/**
+ * What a transaction actually costs, for "do you have enough MON?" maths only —
+ * never for building a transaction (that always uses MAX_FEE, which EIP-1559
+ * refunds).
+ *
+ * Monad testnet's base fee sits at ~50 gwei; the 10 gwei on top absorbs a bump
+ * so we don't wave someone through with a balance that dies on the first bid.
+ */
+export const TYPICAL_GAS_PRICE = 60_000_000_000n // 60 gwei
+
 export const feeParams = () => ({
   maxFeePerGas: MAX_FEE,
   maxPriorityFeePerGas: MAX_PRIORITY_FEE,

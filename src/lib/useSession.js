@@ -2,18 +2,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import { readContract } from 'viem/actions'
 import { BIDBLITZ_ABI } from './abi.mjs'
-import { Signer, readClient, squadForAddress, requestFunding, waitForArming, CONTRACT } from './tx.mjs'
-import { roomCode } from './room.mjs'
+import {
+  readClient, squadForAddress, waitForFunds, MIN_GAS_BALANCE, CONTRACT,
+} from './tx.mjs'
 import { InjectedSigner } from './wallet.mjs'
-import { deriveAccount, loadIdentity, saveIdentity, clearIdentity } from './identity.mjs'
+
+const SIGNED_OUT = 'bidblitz:signed-out'
 
 /**
- * One session, two possible wallets.
+ * One session, one wallet: the bidder's own.
  *
- * The burner (name + password) is the default because it gets a stranger bidding
- * in about fifteen seconds. An injected wallet is the opt-in path for people who
- * already have one. Both expose the same interface, so every screen and the
- * contract itself are indifferent to which one signed.
+ * Every participant in an on-chain room pays for their own gas and their own
+ * bids. BidBlitz holds no treasury and no relayer pool, so there is nothing
+ * here that can spend somebody else's MON — the previous airdrop-on-join was
+ * both an open faucet and the reason burner wallets existed at all.
+ *
+ * Rooms that want a no-wallet, nothing-to-lose join are FREE rooms, which run
+ * off-chain (see useFreeRoom) and never touch this hook.
  */
 export function useSession(roomId) {
   const [signer, setSigner] = useState(null)
@@ -21,14 +26,28 @@ export function useSession(roomId) {
   const [me, setMe] = useState({ entityId: 0, purse: 0n, spent: 0n })
   const [status, setStatus] = useState('')
   const [ready, setReady] = useState(false)
+  // Set while the bidder's own wallet is short of gas. The UI turns this into a
+  // "send MON to this address" panel; we poll until it lands.
+  const [funding, setFunding] = useState(null)
 
+  const label = (addr) => `${addr.slice(0, 6)}…${addr.slice(-4)}`
+
+  // Silent reconnect: no popup, so a reload mid-lot doesn't cost a prompt.
+  // Skipped after an explicit sign-out, or leaving would undo itself on reload.
   useEffect(() => {
-    const saved = loadIdentity()
-    if (saved?.key) {
-      setIdentity(saved)
-      setSigner(new Signer(saved.key))
-    }
-    setReady(true)
+    let alive = true
+    ;(async () => {
+      const optedOut = (() => {
+        try { return localStorage.getItem(SIGNED_OUT) === '1' } catch { return false }
+      })()
+      const s = optedOut ? null : await InjectedSigner.restore()
+      if (alive && s) {
+        setSigner(s)
+        setIdentity({ name: label(s.address), address: s.address, injected: true })
+      }
+      if (alive) setReady(true)
+    })()
+    return () => { alive = false }
   }, [])
 
   const refreshMe = useCallback(async () => {
@@ -59,31 +78,28 @@ export function useSession(roomId) {
     return Number(entityId)
   }, [roomId])
 
-  /** Fund if needed, then wait out Monad's lagged reserve-balance window. */
-  const fundAndArm = useCallback(async (s) => {
-    if ((await s.balance()) > 0n) return
+  /**
+   * Gate the join on the bidder's OWN balance.
+   *
+   * Checked before joining rather than at the first bid on purpose: an
+   * underfunded wallet's transaction is excluded at consensus silently — no
+   * revert, no receipt — which on a 20-second lot reads as "the app is broken".
+   */
+  const ensureFunded = useCallback(async (s) => {
+    const balance = await s.balance()
+    if (balance >= MIN_GAS_BALANCE) return true
 
-    const rc = roomId ? roomCode(roomId) : null  // lets the relayer use the host-set amount
-    setStatus('Funding your wallet…')
-    const fund = await requestFunding(s.address, false, rc)
+    setFunding({ address: s.address, need: MIN_GAS_BALANCE, balance })
+    setStatus('Waiting for MON…')
 
-    const deadline = Date.now() + 20000
-    let funded = false
-    while (Date.now() < deadline) {
-      if ((await s.balance()) > 0n) { funded = true; break }
-      await new Promise((r) => setTimeout(r, 400))
-    }
-    if (!funded) {
-      await requestFunding(s.address, true, rc) // force: break a stale lock
-      await new Promise((r) => setTimeout(r, 2500))
-    }
+    const ok = await waitForFunds(s, {
+      onTick: (b) => setFunding((f) => (f ? { ...f, balance: b } : f)),
+    })
 
-    // A wallet funded at block B had zero balance at B-3, and Monad derives the
-    // inflight gas budget from that lagged state — so its first bid would be
-    // excluded at consensus, silently, with no receipt and no revert.
-    setStatus('Arming your wallet…')
-    await waitForArming(await readClient.getBlockNumber(), fund?.armBlocks ?? 4)
-  }, [roomId])
+    setFunding(null)
+    if (!ok) throw new Error('That wallet still has no MON for gas. Top it up and try again.')
+    return true
+  }, [])
 
   const finishJoin = useCallback(async (s) => {
     if (!roomId) return
@@ -105,45 +121,20 @@ export function useSession(roomId) {
     }
   }, [roomId, entityIdOf])
 
-  /** Burner path: name + password derive the wallet, on any device. */
-  const joinWithPassword = useCallback(async (name, password) => {
-    setStatus('Deriving your wallet…')
-    const { key, account } = deriveAccount(name, password)
-    const s = new Signer(key)
-
-    try {
-      // Knowing the password IS the proof of identity, so an existing entity
-      // just means this person is coming back. Skip funding entirely.
-      const existing = roomId ? await entityIdOf(account.address) : 0
-      if (existing === 0) {
-        await fundAndArm(s)
-        await finishJoin(s)
-      }
-
-      const ident = { name, key, address: account.address }
-      saveIdentity(ident)
-      setIdentity(ident)
-      setSigner(s)
-      setStatus('')
-      setTimeout(refreshMe, 300)
-      return s
-    } catch (err) {
-      setStatus('')
-      throw err
-    }
-  }, [roomId, entityIdOf, fundAndArm, finishJoin, refreshMe])
-
-  /** Bring-your-own-wallet path: MetaMask, Rabby, OKX, Backpack. */
+  /** Connect MetaMask / Rabby / OKX / Backpack and join with your own MON. */
   const connectWallet = useCallback(async () => {
     setStatus('Connecting wallet…')
     try {
       const s = await InjectedSigner.connect()
-      await fundAndArm(s)
+      try { localStorage.removeItem(SIGNED_OUT) } catch {}
+      // Show who's connected immediately — the funding panel below needs the
+      // address on screen for someone to send MON to.
+      setSigner(s)
+      setIdentity({ name: label(s.address), address: s.address, injected: true })
+
+      await ensureFunded(s)
       await finishJoin(s)
 
-      const ident = { name: `${s.address.slice(0, 6)}…${s.address.slice(-4)}`, address: s.address, injected: true }
-      setIdentity(ident)
-      setSigner(s)
       setStatus('')
       setTimeout(refreshMe, 300)
       return s
@@ -151,14 +142,14 @@ export function useSession(roomId) {
       setStatus('')
       throw err
     }
-  }, [fundAndArm, finishJoin, refreshMe])
+  }, [ensureFunded, finishJoin, refreshMe])
 
-  /** Join a different room with the wallet already in hand. */
+  /** Join another room with the wallet already connected. */
   const joinRoom = useCallback(async () => {
     if (!signer) return
     setStatus('Joining the auction…')
     try {
-      await fundAndArm(signer)
+      await ensureFunded(signer)
       await finishJoin(signer)
       setStatus('')
       setTimeout(refreshMe, 300)
@@ -166,18 +157,24 @@ export function useSession(roomId) {
       setStatus('')
       throw err
     }
-  }, [signer, fundAndArm, finishJoin, refreshMe])
+  }, [signer, ensureFunded, finishJoin, refreshMe])
 
+  /**
+   * Drops the app's reference to the wallet. It cannot revoke the site's
+   * permission — only the wallet extension can do that — so this is "sign out
+   * of BidBlitz", not "disconnect MetaMask".
+   */
   const leave = useCallback(() => {
-    clearIdentity()
+    try { localStorage.setItem(SIGNED_OUT, '1') } catch {}
     setIdentity(null)
     setSigner(null)
+    setFunding(null)
     setMe({ entityId: 0, purse: 0n, spent: 0n })
   }, [])
 
   return {
-    signer, identity, me, status, ready,
+    signer, identity, me, status, ready, funding,
     joined: me.entityId !== 0,
-    refreshMe, joinWithPassword, connectWallet, joinRoom, leave,
+    refreshMe, connectWallet, joinRoom, leave,
   }
 }

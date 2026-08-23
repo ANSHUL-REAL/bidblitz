@@ -7,12 +7,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "wallets": "node scripts/wallets.mjs",
     "balance": "node scripts/check-balance.mjs",
     "compile": "node scripts/compile.mjs",
     "deploy": "node scripts/deploy.mjs",
     "deploy:ping": "node scripts/deploy.mjs Ping",
-    "fund-relayers": "node scripts/fund-relayers.mjs",
     "bots": "node scripts/bots.mjs",
     "db:setup": "node scripts/db-setup.mjs"
   },

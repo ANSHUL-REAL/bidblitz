@@ -1,6 +1,7 @@
 'use client'
 import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { formatEther } from 'viem'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { JoinCard } from '../../../../components/JoinCard'
 import { useAuction, useCountdown } from '../../../../lib/useAuction'
@@ -12,7 +13,7 @@ import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '.
 import { itemsForCategories, FANTASY_ITEMS } from '../../../../lib/categories.mjs'
 import { imageForItem } from '../../../../lib/presetArt.mjs'
 import { getRoom, uploadImage } from '../../../../lib/supabase'
-import { requestFunding } from '../../../../lib/tx.mjs'
+import { HOST_GAS_FLOOR } from '../../../../lib/tx.mjs'
 
 /**
  * Host console.
@@ -99,14 +100,22 @@ function Console({ code, roomId, state, refetch, signer }) {
     [isFantasy, cats],
   )
 
-  // Hosting burns gas on every start/sell, so keep the host wallet topped up.
-  // On mount (and it arms in the background while you set up the first lot),
-  // refill if it's running low — /api/fund only actually sends below its floor.
+  // Hosting burns gas on every startLot and sellLot, and the host pays for it
+  // out of their own wallet — BidBlitz has no treasury to top anyone up from.
+  // Warn BEFORE the room fills up rather than stalling mid-lot: a host whose
+  // wallet dies between "start" and "sell" leaves bidders staring at a frozen
+  // screen with escrowed MON in the contract.
+  const [lowGas, setLowGas] = useState(null)
   useEffect(() => {
     if (!signer?.address) return
-    signer.balance().then((bal) => {
-      if (bal < 120000000000000000n) requestFunding(signer.address, false, null).catch(() => {})
-    }).catch(() => {})
+    let alive = true
+    const check = () =>
+      signer.balance()
+        .then((bal) => { if (alive) setLowGas(bal < HOST_GAS_FLOOR ? bal : null) })
+        .catch(() => {})
+    check()
+    const id = setInterval(check, 20000)
+    return () => { alive = false; clearInterval(id) }
   }, [signer])
 
   async function run(fn, label) {
@@ -163,6 +172,8 @@ function Console({ code, roomId, state, refetch, signer }) {
       </header>
 
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '18px 16px 0' }}>
+        {lowGas != null && <LowGasBanner balance={lowGas} address={signer.address} />}
+
         {/* Real-MON proceeds to collect (escrow rooms only; hidden otherwise). */}
         <WithdrawPanel signer={signer} label="Auction proceeds" claimLabel="Collect to wallet" accent="#12703a" />
 
@@ -453,5 +464,48 @@ function ImageChoice({ src, active, onClick, label }) {
         />
       ) : label}
     </button>
+  )
+}
+
+/**
+ * The host pays for their own room. BidBlitz has no relayer pool to top them up
+ * from any more, so the only useful thing to do is say so early and loudly —
+ * a host who runs out between startLot and sellLot freezes the room with
+ * bidders' MON still escrowed in the contract.
+ */
+function LowGasBanner({ balance, address }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {}
+  }
+
+  return (
+    <div style={{ background: '#fff8ec', border: '1px solid #f4e2c0', borderRadius: 14, padding: 16, marginBottom: 14 }}>
+      <div style={{ fontWeight: 800, fontSize: 14.5, color: '#8a5a00' }}>
+        Low on gas — {Number(formatEther(balance)).toFixed(3)} MON left
+      </div>
+      <p style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.5, color: '#8a6a30' }}>
+        Every lot you start and sell is a transaction from your own wallet. Top up
+        before the room fills, or the auction will stall mid-lot.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+        <button
+          className="btn-plain" onClick={copy}
+          style={{
+            padding: '8px 12px', borderRadius: 9, border: '1px dashed #d8b978', background: '#fffdf8',
+            fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#5a4416', cursor: 'pointer',
+          }}
+        >
+          {copied ? 'Copied ✓' : `${address.slice(0, 10)}…${address.slice(-6)}`}
+        </button>
+        <a href="https://faucet.monad.xyz" target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: '#6b2de6' }}>
+          Testnet faucet ↗
+        </a>
+      </div>
+    </div>
   )
 }

@@ -43,7 +43,7 @@ export default function Room({ params }) {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 20px 0' }}>
         {!joined ? (
-          <JoinCard session={session} roomName={state?.rname} mode={state?.mode} code={code} />
+          <JoinCard session={session} roomName={state?.rname} mode={state?.mode} escrow={state?.escrow} code={code} />
         ) : (
           <>
             <WithdrawPanel signer={signer} label="Refund available" claimLabel="Claim refund" accent="#6b2de6" />

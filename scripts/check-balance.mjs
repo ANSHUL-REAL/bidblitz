@@ -13,10 +13,10 @@ const targets = []
 if (arg?.startsWith('0x') && arg.length === 42) {
   targets.push(['address', arg])
 } else {
+  // MASTER_KEY is a LOCAL developer key now — it deploys the contract and funds
+  // the bot script. It is not deployed anywhere and never pays for a real
+  // participant's gas; everyone in a room brings their own MON.
   if (process.env.MASTER_KEY) targets.push(['MASTER', privateKeyToAccount(process.env.MASTER_KEY).address])
-  for (const [i, k] of (process.env.RELAYER_KEYS || '').split(',').filter(Boolean).entries()) {
-    targets.push([`relayer ${i}`, privateKeyToAccount(k.trim()).address])
-  }
 }
 
 if (!targets.length) {
@@ -38,22 +38,21 @@ for (const [label, address, wei] of balances) {
 const master = balances.find(([l]) => l === 'MASTER') ?? balances[0]
 const mon = Number(formatEther(master[2]))
 
-// The cut ladder from the plan, applied to the actual number.
+/**
+ * This number no longer sizes the event.
+ *
+ * It used to: MASTER funded an 8-relayer pool that airdropped every joiner, so
+ * the balance here capped how many people could bid. That pool is gone —
+ * participants bring their own MON — and MASTER is now just a local dev key
+ * with two jobs: deploy the contract once, and fund the bot script.
+ */
 console.log(`\n  ${addressUrl(master[1])}\n`)
-console.log(`  ── Budget verdict on ${mon.toFixed(3)} MON ──`)
-if (mon >= 8) {
-  console.log(`  COMFORTABLE. Full scope: 16 lots, 0.05 MON/burner, badge NFT on every sell.`)
-} else if (mon >= 4) {
-  console.log(`  WORKABLE. Cut in this order as needed:`)
-  console.log(`    1. client-side stale-bid guard (biggest lever, also better UX)`)
-  console.log(`    2. lazy funding 0.05/burner + top-up below 0.02`)
-  console.log(`    3. tight gas limits from measured estimateGas`)
-} else if (mon >= 3) {
-  console.log(`  TIGHT. Drop the badge mint. 8 lots, 0.03 MON/burner.`)
+console.log(`  ── ${mon.toFixed(3)} MON in the local dev wallet ──`)
+if (mon >= 1) {
+  console.log(`  Plenty. Deploy costs well under 1 MON; bots take 0.05 MON each.`)
+} else if (mon >= 0.2) {
+  console.log(`  Enough to deploy. Top up before running a full bot swarm.`)
 } else {
-  console.log(`  TOO LOW for per-phone transactions.`)
-  console.log(`  Switch to batched meta-transactions (burners sign EIP-712, one`)
-  console.log(`  relayer submits batched, ~0.12 MON total) — or demo with bots only.`)
-  console.log(`  Make this call NOW, not at hour 4.`)
+  console.log(`  Low. Claim from the faucet before deploying: https://faucet.monad.xyz`)
 }
-console.log()
+console.log(`\n  Hosts and bidders fund their own wallets — nothing here pays for them.\n`)
