@@ -3,6 +3,7 @@ import { use, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { Avatar } from '../../../../components/Avatar'
+import { InviteCard, InviteDialog, useRoomUrl } from '../../../../components/InviteCard'
 import { useCountdown, formatCountdown } from '../../../../lib/useAuction'
 import { useFreeState, useFreeHost, useBots } from '../../../../lib/useFreeRoom'
 import { normalizeCode, DEFAULT_DURATION, loadHostToken } from '../../../../lib/freeRoom.mjs'
@@ -75,6 +76,8 @@ function Console({ code, state, host, refetch }) {
   const [duration, setDuration] = useState(DEFAULT_DURATION)
   // Off unless the host turns it on. Nothing adds bots by itself.
   const [botsOn, setBotsOn] = useState(false)
+  const [invite, setInvite] = useState(false)
+  const joinUrl = useRoomUrl(`/f/${code}`)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const isOpen = Number(state?.openLotId || 0) !== 0
@@ -117,7 +120,7 @@ function Console({ code, state, host, refetch }) {
   if (closed) {
     return (
       <main style={SHELL}>
-        <Header code={code} state={state} closed onEnd={null} onMirror={null} />
+        <Header code={code} state={state} closed onEnd={null} onMirror={null} onInvite={null} />
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14 }}>
           <FinalResults results={results} players={players} />
         </div>
@@ -130,6 +133,7 @@ function Console({ code, state, host, refetch }) {
       <Header
         code={code} state={state} closed={false}
         onEnd={() => setConfirmEnd(true)} onMirror={() => setMirror(true)}
+        onInvite={() => setInvite(true)}
       />
 
       <div className="stage" style={STAGE}>
@@ -150,6 +154,7 @@ function Console({ code, state, host, refetch }) {
             <SetupCard
               count={pending.length} busy={busy} duration={duration} setDuration={setDuration}
               onStart={() => run(() => host.startNext(duration), null)}
+              joinUrl={joinUrl} code={code} title={state?.rname}
             />
           )}
 
@@ -179,6 +184,10 @@ function Console({ code, state, host, refetch }) {
         <p style={{ ...TOAST, background: msg.ok ? '#efeafd' : '#fdecea', color: msg.ok ? '#5b28d9' : '#c0392b' }}>
           {msg.text}
         </p>
+      )}
+
+      {invite && (
+        <InviteDialog url={joinUrl} code={code} title={state?.rname} onClose={() => setInvite(false)} />
       )}
 
       {mirror && <ScreenMirror code={code} onClose={() => setMirror(false)} />}
@@ -225,7 +234,7 @@ const TOAST = {
 }
 
 /** Nothing has run yet: one button, and it says what it will do. */
-function SetupCard({ count, busy, duration, setDuration, onStart }) {
+function SetupCard({ count, busy, duration, setDuration, onStart, joinUrl, code, title }) {
   return (
     <section style={{ ...CARD, padding: 16, flexShrink: 0 }}>
       <div style={LABEL}>SET UP</div>
@@ -253,6 +262,10 @@ function SetupCard({ count, busy, duration, setDuration, onStart }) {
             {sec}s
           </button>
         ))}
+      </div>
+
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #f3f1fa' }}>
+        <InviteCard url={joinUrl} code={code} title={title} compact />
       </div>
 
       <button
@@ -812,7 +825,7 @@ function EndRoomDialog({ busy, onCancel, onEnd }) {
   )
 }
 
-function Header({ code, state, closed, onEnd, onMirror }) {
+function Header({ code, state, closed, onEnd, onMirror, onInvite }) {
   return (
     <header
       style={{
@@ -834,6 +847,14 @@ function Header({ code, state, closed, onEnd, onMirror }) {
         </span>
       </Link>
       <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexShrink: 0, flexWrap: 'nowrap' }}>
+        {onInvite && (
+          <button
+            className="btn-plain" onClick={onInvite}
+            style={{ padding: '7px 11px', borderRadius: 9, background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap' }}
+          >
+            Invite
+          </button>
+        )}
         {onMirror && (
           <button
             className="btn-plain" onClick={onMirror} title="Watch the big screen"

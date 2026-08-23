@@ -8,6 +8,7 @@ import { useAuction, useCountdown, formatCountdown } from '../../../../lib/useAu
 import { useSession } from '../../../../lib/useSession'
 import { WithdrawPanel } from '../../../../components/WithdrawPanel'
 import { SettlePanel } from '../../../../components/SettlePanel'
+import { InviteCard, InviteDialog, useRoomUrl } from '../../../../components/InviteCard'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
 import { formatAmount, entityLabel, SQUADS } from '../../../../lib/format.mjs'
 import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '../../../../lib/lots.mjs'
@@ -74,6 +75,8 @@ function Console({ code, roomId, state, refetch, signer }) {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [invite, setInvite] = useState(false)
+  const joinUrl = useRoomUrl(`/r/${code}`)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const isOpen = Number(state?.openLotId || 0) !== 0
@@ -165,6 +168,12 @@ function Console({ code, roomId, state, refetch, signer }) {
           </span>
         </Link>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <button
+            className="btn-plain" onClick={() => setInvite(true)}
+            style={{ padding: '7px 12px', borderRadius: 9, background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap' }}
+          >
+            Invite
+          </button>
           <a href={`/r/${code}/leaderboard`} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78' }}>Board ↗</a>
           <a href={`/r/${code}/history`} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78' }}>History ↗</a>
           <a href={`/r/${code}/screen`} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 700, color: '#6b6d78' }}>Screen ↗</a>
@@ -172,8 +181,20 @@ function Console({ code, roomId, state, refetch, signer }) {
         </div>
       </header>
 
+      {invite && (
+        <InviteDialog url={joinUrl} code={code?.toUpperCase()} title={state?.rname} onClose={() => setInvite(false)} />
+      )}
+
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '18px 16px 0' }}>
         {lowGas != null && <LowGasBanner balance={lowGas} address={signer.address} />}
+
+        {/* Before the first lot there is nothing to run yet, so the only useful
+            thing on screen is how to get people in. */}
+        {!isOpen && Number(state?.totalLots || 0) === 0 && (
+          <section style={{ background: '#fff', borderRadius: 16, padding: 14, marginBottom: 14, boxShadow: '0 10px 30px rgba(30,20,70,.07)' }}>
+            <InviteCard url={joinUrl} code={code?.toUpperCase()} title={state?.rname} compact />
+          </section>
+        )}
 
         {/* Real-MON proceeds to collect (escrow rooms only; hidden otherwise). */}
         <WithdrawPanel signer={signer} label="Auction proceeds" claimLabel="Collect to wallet" accent="#5b28d9" />
