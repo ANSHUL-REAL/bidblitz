@@ -1,5 +1,5 @@
 'use client'
-import { use, useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { Avatar } from '../../../../components/Avatar'
@@ -10,6 +10,7 @@ import { formatAmount, entityLabel, entityColor, shortAddress } from '../../../.
 import { itemsForCategories, FANTASY_ITEMS } from '../../../../lib/categories.mjs'
 import { imageForItem } from '../../../../lib/presetArt.mjs'
 import { sanitizeLotName } from '../../../../lib/lots.mjs'
+import { uploadImage } from '../../../../lib/supabase'
 
 /**
  * Host console for a FREE room.
@@ -70,6 +71,7 @@ function Console({ code, state, host, refetch }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [mirror, setMirror] = useState(false)
   const [duration, setDuration] = useState(DEFAULT_DURATION)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
@@ -110,7 +112,7 @@ function Console({ code, state, host, refetch }) {
   if (closed) {
     return (
       <main style={SHELL}>
-        <Header code={code} state={state} closed onEnd={null} />
+        <Header code={code} state={state} closed onEnd={null} onMirror={null} />
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14 }}>
           <FinalResults results={results} players={players} />
         </div>
@@ -120,7 +122,10 @@ function Console({ code, state, host, refetch }) {
 
   return (
     <main style={SHELL}>
-      <Header code={code} state={state} closed={false} onEnd={() => setConfirmEnd(true)} />
+      <Header
+        code={code} state={state} closed={false}
+        onEnd={() => setConfirmEnd(true)} onMirror={() => setMirror(true)}
+      />
 
       <div className="stage" style={STAGE}>
         <div style={{ display: 'grid', gap: 10, minHeight: 0, gridTemplateRows: 'auto minmax(0,1fr)' }}>
@@ -163,6 +168,8 @@ function Console({ code, state, host, refetch }) {
           {msg.text}
         </p>
       )}
+
+      {mirror && <ScreenMirror code={code} onClose={() => setMirror(false)} />}
 
       {confirmEnd && (
         <EndRoomDialog
@@ -308,10 +315,24 @@ function SoldCard({ state, highest, leaderName, nextItem, busy, onContinue, onEn
 }
 
 /** The catalogue: what is coming, what already went, and how to add more. */
+/**
+ * The catalogue: what is coming, what already went, and how to add more.
+ *
+ * An item is a name and a picture, and the picture is most of the appeal on a
+ * projector — so there are three ways to attach one and all of them show a
+ * thumbnail before you commit: paste a URL, pick a file, or drop a file on the
+ * panel. Presets stay available but are folded away, because a host with their
+ * own photos should not have to scroll past someone else's memes to find the
+ * field they actually want.
+ */
 function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
   const [name, setName] = useState('')
   const [image, setImage] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [err, setErr] = useState('')
   const [showPresets, setShowPresets] = useState(false)
+  const fileRef = useRef(null)
 
   const isFantasy = Number(state?.mode) === 1
   const presets = useMemo(
@@ -326,21 +347,48 @@ function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
     const clean = sanitizeLotName(n)
     if (!clean) return
     onAdd(clean, img || '')
-    setName(''); setImage('')
+    setName(''); setImage(''); setErr('')
+  }
+
+  async function takeFile(file) {
+    if (!file) return
+    if (!file.type?.startsWith('image/')) return setErr('That file is not an image.')
+    // 6MB: comfortably more than a phone photo, far less than something that
+    // will stall the upload on venue wifi.
+    if (file.size > 6 * 1024 * 1024) return setErr('Image is over 6MB — pick a smaller one.')
+    setErr(''); setUploading(true)
+    try {
+      const url = await uploadImage(file)
+      if (url) setImage(url)
+      else setErr('Upload failed — paste a URL instead.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
-    <section style={PANEL}>
+    <section
+      style={{
+        ...PANEL,
+        outline: dragging ? '2px dashed #6b2de6' : 'none',
+        outlineOffset: -4,
+      }}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault(); setDragging(false)
+        takeFile(e.dataTransfer?.files?.[0])
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexShrink: 0 }}>
         <span style={LABEL}>UP NEXT</span>
         <span style={{ fontSize: 12, color: '#9c94bd' }}>{pending.length} queued</span>
       </div>
 
-      {/* Typing your own comes first — it is what a host reaches for. */}
       <div style={{ display: 'flex', gap: 6, marginTop: 9, flexShrink: 0 }}>
         <input
           className="field" value={name} style={{ flex: 1, fontSize: 13.5, padding: '10px 11px' }}
-          onChange={(e) => setName(e.target.value)} placeholder="Add an item…" maxLength={60}
+          onChange={(e) => setName(e.target.value)} placeholder="What's on the block?" maxLength={60}
           onKeyDown={(e) => { if (e.key === 'Enter') add(name, image) }}
         />
         <button
@@ -353,22 +401,68 @@ function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
           Add
         </button>
       </div>
-      <input
-        className="field" value={image} style={{ marginTop: 6, fontSize: 12.5, padding: '8px 11px', flexShrink: 0 }}
-        onChange={(e) => setImage(e.target.value)} placeholder="Image URL (optional)" maxLength={500}
-      />
+
+      {/* --- picture: paste, pick, or drop --- */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 6, flexShrink: 0, alignItems: 'center' }}>
+        {image ? (
+          <img
+            src={image} alt=""
+            style={{ width: 38, height: 38, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: '1px solid #e6e2f5' }}
+            onError={() => setErr('That URL did not load as an image.')}
+          />
+        ) : (
+          <div style={{ width: 38, height: 38, borderRadius: 8, background: '#f3f1fa', display: 'grid', placeItems: 'center', flexShrink: 0, fontSize: 15 }}>
+            🖼
+          </div>
+        )}
+        <input
+          className="field" value={image} style={{ flex: 1, fontSize: 12, padding: '8px 10px' }}
+          onChange={(e) => { setImage(e.target.value.trim()); setErr('') }}
+          placeholder="Paste an image URL…" maxLength={500}
+        />
+        <button
+          className="btn-plain" disabled={busy || uploading} onClick={() => fileRef.current?.click()}
+          style={{ padding: '8px 11px', borderRadius: 9, border: '1px solid #e6e2f5', background: '#fbfaff', fontWeight: 700, fontSize: 12, color: '#5b28d9', whiteSpace: 'nowrap' }}
+        >
+          {uploading ? '…' : 'Upload'}
+        </button>
+        {image && (
+          <button
+            className="btn-plain" onClick={() => { setImage(''); setErr('') }}
+            title="Remove picture"
+            style={{ padding: '8px 9px', borderRadius: 9, background: 'transparent', color: '#bdb4d6', fontWeight: 800, fontSize: 14, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        )}
+        <input
+          ref={fileRef} type="file" accept="image/*" hidden
+          onChange={(e) => { takeFile(e.target.files?.[0]); e.target.value = '' }}
+        />
+      </div>
+
+      {err && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: '#c0392b', flexShrink: 0 }}>{err}</p>}
 
       <div style={{ marginTop: 9, flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gap: 5, alignContent: 'start' }}>
         {pending.map((q, i) => (
           <div
             key={q.id}
             style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 9,
+              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 9,
               background: i === 0 ? '#efeafd' : '#fbfaff',
               border: `1px solid ${i === 0 ? '#ddd0fa' : '#f0edfa'}`, flexShrink: 0,
             }}
           >
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#9c94bd', width: 16 }}>{i + 1}</span>
+            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#9c94bd', width: 14 }}>{i + 1}</span>
+            {q.image ? (
+              <img
+                src={q.image} alt=""
+                style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
+            ) : (
+              <span style={{ width: 26, height: 26, borderRadius: 6, background: '#efeafd', display: 'grid', placeItems: 'center', fontSize: 11, flexShrink: 0 }}>🖼</span>
+            )}
             <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {q.name}
             </span>
@@ -384,7 +478,8 @@ function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
 
         {pending.length === 0 && (
           <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#9c94bd', lineHeight: 1.5 }}>
-            Queue is empty. Type an item above, or tap a preset.
+            Queue is empty. Type a name above, add a picture, and hit Add — or drop
+            an image straight onto this panel.
           </p>
         )}
 
@@ -428,6 +523,7 @@ function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
     </section>
   )
 }
+
 
 /** The closing board: who won which items. */
 function FinalResults({ results, players }) {
@@ -562,6 +658,44 @@ function Leaderboard({ players, leadAddr, busy, onKick }) {
   )
 }
 
+/**
+ * What the room is looking at, for a host who cannot see the projector.
+ *
+ * An iframe of the real screen rather than a rebuilt copy: a second
+ * implementation of the same view would drift from it the first time either
+ * changes, and the whole point is to see EXACTLY what the room sees. It is a
+ * deliberate opt-in because it runs the screen's 400ms poll a second time.
+ */
+function ScreenMirror({ code, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(10,9,20,.82)', display: 'grid', placeItems: 'center', padding: 16 }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 900 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ color: '#fff', fontWeight: 800, fontSize: 13, letterSpacing: '.14em' }}>
+            WHAT THE ROOM SEES
+          </span>
+          <button
+            className="btn-plain" onClick={onClose}
+            style={{ padding: '7px 13px', borderRadius: 9, background: 'rgba(255,255,255,.14)', color: '#fff', fontWeight: 700, fontSize: 13 }}
+          >
+            Close
+          </button>
+        </div>
+        <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: 14, overflow: 'hidden', background: '#0d0b16' }}>
+          <iframe
+            src={`/f/${code}/screen`}
+            title="Big screen"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EndRoomDialog({ busy, onCancel, onEnd }) {
   return (
     <div
@@ -601,7 +735,7 @@ function EndRoomDialog({ busy, onCancel, onEnd }) {
   )
 }
 
-function Header({ code, state, closed, onEnd }) {
+function Header({ code, state, closed, onEnd, onMirror }) {
   return (
     <header
       style={{
@@ -621,8 +755,23 @@ function Header({ code, state, closed, onEnd }) {
           </span>
         </span>
       </Link>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-        <Link href={`/f/${code}/screen`} style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}>Screen</Link>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+        {onMirror && (
+          <button
+            className="btn-plain" onClick={onMirror}
+            style={{ padding: '7px 11px', borderRadius: 9, border: '1.5px solid #e6e2f5', background: '#fff', color: '#5b28d9', fontWeight: 800, fontSize: 12.5 }}
+          >
+            Watch screen
+          </button>
+        )}
+        {/* New tab, not a navigation: a host who taps this mid-lot must not
+            lose the console they are running the auction from. */}
+        <a
+          href={`/f/${code}/screen`} target="_blank" rel="noreferrer"
+          style={{ fontSize: 12.5, fontWeight: 700, color: '#6b6d78' }}
+        >
+          Open ↗
+        </a>
         {onEnd && (
           <button
             className="btn-plain" onClick={onEnd}
