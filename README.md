@@ -20,12 +20,32 @@ BidBlitz never pays for anybody's gas. It holds no treasury and no server-side w
 
 ### Free rooms — `/f/<code>`
 
-Off-chain and genuinely free. Bids are points, not currency; nothing is written to a chain and
-nobody spends anything. Join by picking a name and a face — no wallet, no account, ~10 seconds.
+Off-chain and free to play. Bids are points, not currency; nothing is written to a chain. Join
+by picking a name and a face — no wallet, no account, ~10 seconds. Everyone starts on an equal
+purse.
 
 Free rooms are off-chain **because** they're free: on Monad even a play-money bid is a
 transaction, so "free" and "on-chain" can't both be true — somebody would have to pay the gas.
 State lives in Postgres and every rule (who's leading, who may settle) is enforced there.
+
+**Point packs (optional).** Players can buy extra points with real MON, paid to the address in
+`NEXT_PUBLIC_TREASURY_ADDRESS`. This is how the project pays for itself. Two rules make it a
+game purchase rather than a financial product, and both are enforced in code:
+
+- **One way.** Points can never be converted back to MON. A two-way conversion would make this
+  money transmission, which is a licensed business.
+- **Free rooms only.** Free rooms award points and bragging rights — nothing of real value.
+  Selling bidding power toward a *real prize* looks like a raffle in many jurisdictions;
+  selling it toward a leaderboard is a video game. `/api/free/topup` refuses any room that
+  isn't in the free tables.
+
+Payment is verified against the chain, never trusted from the client: `/api/free/topup` re-reads
+the transaction and checks it was mined and succeeded, went to the treasury, paid a pack price
+exactly, is buried under 3 confirmations, and carries a memo binding it to that specific
+(room, player). The memo is what stops somebody watching the chain and claiming a payment that
+isn't theirs. `free_topups.tx_hash` is a primary key, so a replay credits nothing.
+
+Leave `NEXT_PUBLIC_TREASURY_ADDRESS` blank and packs disappear entirely.
 
 ### MON rooms — `/r/<code>`
 
@@ -174,6 +194,7 @@ the bot script from your laptop. Every push auto-deploys.
 | `NEXT_PUBLIC_CONTRACT` | public | Deployed BidBlitz address |
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | public | Supabase project |
 | `SUPABASE_SERVICE_ROLE_KEY` | secret | Server only; required for free rooms |
+| `NEXT_PUBLIC_TREASURY_ADDRESS` | public | Receives MON from point packs; blank disables them |
 | `NEXT_PUBLIC_EVENT_SALT` | public | Salt for the bot script's throwaway wallets |
 | `MASTER_KEY` | secret, **local only** | Deploys the contract, funds `npm run bots` |
 | `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | secret | AI bidders (optional) |

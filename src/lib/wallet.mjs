@@ -145,6 +145,34 @@ export class InjectedSigner {
     }
   }
 
+  /**
+   * A plain value transfer to an arbitrary address, with optional calldata.
+   *
+   * Used to buy point packs: the MON goes to the treasury and the calldata
+   * carries a memo binding the payment to one player in one room, so nobody can
+   * claim somebody else's payment by watching the chain for hashes.
+   *
+   * Deliberately separate from send() above, which always targets the BidBlitz
+   * contract and encodes a function call.
+   */
+  async sendValue(to, value, data = '0x', gas = 26_000n) {
+    const tx = {
+      from: this.address,
+      to,
+      value: toHex(BigInt(value)),
+      gas: toHex(gas),
+      maxFeePerGas: toHex(MAX_FEE),
+      maxPriorityFeePerGas: toHex(MAX_PRIORITY_FEE),
+    }
+    if (data && data !== '0x') tx.data = data
+    try {
+      return await this.provider.request({ method: 'eth_sendTransaction', params: [tx] })
+    } catch (err) {
+      if (err?.code === 4001) throw new Error('You cancelled the payment')
+      throw new Error(String(err?.shortMessage || err?.message || err).slice(0, 140))
+    }
+  }
+
   createRoom(name, mode = 0, escrow = false) {
     return this.send('createRoom', [name, Number(mode), Boolean(escrow)], GAS.createRoom)
   }

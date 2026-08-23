@@ -169,8 +169,19 @@ export function useFreeSession(rawCode) {
     })
   }, [player?.addr])
 
+  /**
+   * Apply a credited points pack immediately instead of waiting up to a second
+   * for the next state poll. Somebody who just spent real MON should see the
+   * purse move the instant it lands, not after a beat that reads as a failure.
+   * The poll then confirms it from the server anyway.
+   */
+  const applyCredit = useCallback((credited) => {
+    if (!credited?.purse) return
+    setPlayer((prev) => (prev ? { ...prev, purse: credited.purse, bought: credited.bought } : prev))
+  }, [])
+
   return {
-    code, player, signer, status, ready, isHost,
+    code, player, signer, status, ready, isHost, applyCredit,
     joined: Boolean(player?.entityId),
     me: {
       entityId: player?.entityId || 0,

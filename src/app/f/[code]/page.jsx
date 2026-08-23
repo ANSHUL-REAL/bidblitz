@@ -6,6 +6,7 @@ import { RaceTrack, racersFromState } from '../../../components/RaceTrack'
 import { BidBar } from '../../../components/BidBar'
 import { TeamStandings } from '../../../components/TeamStandings'
 import { Avatar, AVATAR_SEEDS } from '../../../components/Avatar'
+import { PointsShop } from '../../../components/PointsShop'
 import { useCountdown } from '../../../lib/useAuction'
 import { useFreeState, useFreeSession } from '../../../lib/useFreeRoom'
 import { normalizeCode } from '../../../lib/freeRoom.mjs'
@@ -42,7 +43,14 @@ export default function FreeRoom({ params }) {
         {!joined ? (
           <FreeJoinCard session={session} roomName={state?.rname} />
         ) : (
-          <LiveRoom state={state} signer={signer} me={me} />
+          <>
+            <PointsShop
+              code={code}
+              playerId={session.player?.addr}
+              onCredited={session.applyCredit}
+            />
+            <LiveRoom state={state} signer={signer} me={me} />
+          </>
         )}
       </div>
 
@@ -166,7 +174,7 @@ function FreeJoinCard({ session, roomName }) {
           {roomName || 'Get in the race'}
         </h1>
         <p style={{ margin: '12px 0 0', fontSize: 17, color: '#2a2a3a' }}>
-          One field and a face. No wallet, no MON, nothing to lose — just the bragging rights.
+          One field and a face. Free to play — no wallet and no MON needed to bid.
         </p>
       </div>
 
@@ -220,8 +228,9 @@ function FreeJoinCard({ session, roomName }) {
         </button>
 
         <p style={{ margin: '14px 0 0', fontSize: 12.5, lineHeight: 1.5, color: '#9c94bd', textAlign: 'center' }}>
-          Points in this room are just points. Nothing is on-chain and no MON moves —
-          for real bidding, join a MON room instead.
+          Points in this room are just points — nothing here is on-chain. You can buy
+          extra points with MON if you want a bigger paddle, but you never have to,
+          and everyone starts equal. For real bidding, join a MON room instead.
         </p>
 
         {error && <p style={{ margin: '14px 0 0', color: '#c0392b', fontSize: 14 }}>{error}</p>}
