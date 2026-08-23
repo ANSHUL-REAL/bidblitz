@@ -57,7 +57,7 @@ export async function GET(request) {
             .eq('room_code', code).eq('lot_id', lotId).maybeSingle()
         : Promise.resolve({ data: null }),
       admin.from('free_players')
-        .select('player_id, entity_id, purse, spent, wins, name, avatar_seed, squad, kicked')
+        .select('player_id, entity_id, purse, spent, wins, name, avatar_seed, squad, kicked, is_bot')
         .eq('room_code', code),
     ])
 
@@ -117,6 +117,8 @@ export async function GET(request) {
         purse: milliToWei(p.purse),
         spent: milliToWei(p.spent),
         wins: p.wins || 0,
+        // Labelled honestly rather than passed off as a person.
+        bot: Boolean(p.is_bot),
       })),
       fetchedAt: now,
     }

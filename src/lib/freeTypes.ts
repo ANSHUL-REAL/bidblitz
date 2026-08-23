@@ -104,6 +104,8 @@ export interface FreeHistoryEntry {
   bought: WeiString
   lots: number
   players: number
+  /** True when this account RAN the room rather than played in it. */
+  hosted: boolean
 }
 
 export interface FreeHistoryResponse {

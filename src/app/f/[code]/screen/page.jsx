@@ -47,7 +47,7 @@ export default function FreeScreen({ params }) {
   return (
     <main
       style={{
-        height: '100dvh', overflow: 'hidden', background: '#0d0b16', color: '#fff',
+        minHeight: '100dvh', overflowY: 'auto', background: '#0d0b16', color: '#fff',
         fontFamily: "'DM Sans',system-ui,sans-serif",
         display: 'flex', flexDirection: 'column',
       }}
@@ -77,7 +77,7 @@ export default function FreeScreen({ params }) {
         </div>
       </header>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', placeItems: 'center', padding: '0 34px clamp(12px,2.5vh,34px)', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', placeItems: 'center', padding: '0 34px clamp(12px,2.5vh,34px)' }}>
         {state?.closed ? (
           <FinalBoard state={state} />
         ) : !state?.lotId ? (

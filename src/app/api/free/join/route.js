@@ -33,6 +33,10 @@ export async function POST(request) {
   const playerId = String(body?.playerId || '').toLowerCase()
   const name = sanitizeText(body?.name, 40) || null
   const avatarSeed = sanitizeText(body?.avatarSeed, 40) || null
+  // Only ever the hash. The secret itself stays in the player's browser.
+  const secretHash = /^[0-9a-f]{64}$/.test(String(body?.secretHash || ''))
+    ? String(body.secretHash)
+    : null
 
   if (!isValidCode(code)) return Response.json({ error: 'code required' }, { status: 400 })
   if (!isPlayerId(playerId)) return Response.json({ error: 'bad player id' }, { status: 400 })
@@ -73,6 +77,7 @@ export async function POST(request) {
     p_avatar: avatarSeed,
     p_squad: squad,
     p_purse: Number(START_PURSE_MILLI),
+    p_secret: secretHash,
   }
 
   let { data, error } = await admin.rpc('free_join', { ...args, p_user: userId })

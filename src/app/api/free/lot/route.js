@@ -1,7 +1,7 @@
 import { admin, notConfigured } from '../../../../lib/supabaseAdmin.mjs'
 import {
   normalizeCode, isValidCode, isPlayerId, sanitizeText, hashToken, milliToWei,
-  DEFAULT_DURATION, MAX_DURATION,
+  DEFAULT_DURATION, MAX_DURATION, START_PURSE_MILLI,
 } from '../../../../lib/freeRoom.mjs'
 
 export const runtime = 'nodejs'
@@ -114,6 +114,26 @@ export async function POST(request) {
       return Response.json({ ok: true, closed: true })
     }
 
+    // Bots exist only because the host asked for them. Nothing adds them
+    // automatically and nothing ever will.
+    if (action === 'addBots') {
+      const count = Math.max(1, Math.min(8, Number(body?.count) || 3))
+      const { data, error } = await admin.rpc('free_add_bots', {
+        p_code: code, p_token_hash: hash,
+        p_count: count, p_purse: Number(START_PURSE_MILLI),
+      })
+      if (error) throw error
+      return Response.json({ ok: true, added: data ?? count })
+    }
+
+    if (action === 'clearBots') {
+      const { data, error } = await admin.rpc('free_clear_bots', {
+        p_code: code, p_token_hash: hash,
+      })
+      if (error) throw error
+      return Response.json({ ok: true, removed: data ?? 0 })
+    }
+
     if (action === 'kick') {
       const player = String(body?.playerId || '').toLowerCase()
       if (!isPlayerId(player)) return Response.json({ error: 'bad player id' }, { status: 400 })
@@ -175,5 +195,6 @@ function friendly(m) {
   if (/bad_name/.test(m)) return 'Give the item a name.'
   if (/room_closed/.test(m)) return 'This room has ended.'
   if (/bad_duration/.test(m)) return 'Pick a length between 5 and 300 seconds.'
+  if (/bad_count/.test(m)) return 'Between 1 and 8 bots.'
   return 'That did not work.'
 }

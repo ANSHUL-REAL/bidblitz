@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { BidBlitzMark } from '../../../../components/Logo'
 import { Avatar } from '../../../../components/Avatar'
 import { useCountdown, formatCountdown } from '../../../../lib/useAuction'
-import { useFreeState, useFreeHost } from '../../../../lib/useFreeRoom'
+import { useFreeState, useFreeHost, useBots } from '../../../../lib/useFreeRoom'
 import { normalizeCode, DEFAULT_DURATION, loadHostToken } from '../../../../lib/freeRoom.mjs'
 import { formatAmount, entityLabel, entityColor, shortAddress } from '../../../../lib/format.mjs'
 import { itemsForCategories, FANTASY_ITEMS } from '../../../../lib/categories.mjs'
@@ -73,6 +73,8 @@ function Console({ code, state, host, refetch }) {
   const [confirmEnd, setConfirmEnd] = useState(false)
   const [mirror, setMirror] = useState(false)
   const [duration, setDuration] = useState(DEFAULT_DURATION)
+  // Off unless the host turns it on. Nothing adds bots by itself.
+  const [botsOn, setBotsOn] = useState(false)
 
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const isOpen = Number(state?.openLotId || 0) !== 0
@@ -89,6 +91,9 @@ function Console({ code, state, host, refetch }) {
   const leaderName = state?.bidder
     ? players.find((p) => p.addr === state.bidder)?.name || shortAddress(state.bidder)
     : null
+
+  const bots = players.filter((p) => p.bot)
+  useBots({ code, state, token: loadHostToken(code), enabled: botsOn && bots.length > 0 })
 
   // Three states, and the host only ever needs the one they are in: still
   // setting up, a lot running, or a lot just finished with more to come.
@@ -157,10 +162,17 @@ function Console({ code, state, host, refetch }) {
               />}
         </div>
 
-        <Leaderboard
-          players={players} leadAddr={state?.bidder} busy={busy}
-          onKick={(addr, name) => run(() => host.kickPlayer(addr), `Removed ${name || 'player'}`)}
-        />
+        <div style={{ display: 'grid', gap: 10, minHeight: 0, gridTemplateRows: 'minmax(0,1fr) auto' }}>
+          <Leaderboard
+            players={players} leadAddr={state?.bidder} busy={busy}
+            onKick={(addr, name) => run(() => host.kickPlayer(addr), `Removed ${name || 'player'}`)}
+          />
+          <BotControls
+            count={bots.length} on={botsOn} setOn={setBotsOn} busy={busy}
+            onAdd={(n) => run(() => host.addBots(n), `${n} bot${n === 1 ? '' : 's'} added`)}
+            onClear={() => { setBotsOn(false); run(() => host.clearBots(), 'Bots removed') }}
+          />
+        </div>
       </div>
 
       {msg && (
@@ -532,6 +544,63 @@ function QueuePanel({ queue, busy, state, onAdd, onRemove }) {
   )
 }
 
+
+/**
+ * Bots, entirely opt-in.
+ *
+ * Two separate switches on purpose: adding bots puts them in the room, and the
+ * toggle decides whether they actually bid. A host warming up a small room can
+ * add four and leave them silent until the real bidding stalls.
+ */
+function BotControls({ count, on, setOn, busy, onAdd, onClear }) {
+  return (
+    <section style={{ ...CARD, padding: 12, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={LABEL}>BOTS</span>
+        <span style={{ fontSize: 11.5, color: '#9c94bd' }}>
+          {count === 0 ? 'none' : `${count} in room`}
+        </span>
+      </div>
+
+      {count === 0 ? (
+        <div style={{ display: 'flex', gap: 6, marginTop: 9 }}>
+          {[2, 4, 6].map((n) => (
+            <button
+              key={n} className="btn-plain" disabled={busy} onClick={() => onAdd(n)}
+              style={{ flex: 1, padding: '9px 0', borderRadius: 9, border: '1.5px solid #e6e2f5', background: '#fbfaff', fontWeight: 800, fontSize: 12.5, color: '#5b28d9' }}
+            >
+              + {n}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 6, marginTop: 9, alignItems: 'center' }}>
+          <button
+            className="btn-plain" onClick={() => setOn(!on)} disabled={busy}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 9, fontWeight: 800, fontSize: 12.5,
+              background: on ? '#6b2de6' : '#f3f1fa', color: on ? '#fff' : '#6b6d78',
+            }}
+          >
+            {on ? 'Bots are bidding' : 'Bots are idle'}
+          </button>
+          <button
+            className="btn-plain" onClick={onClear} disabled={busy} title="Remove all bots"
+            style={{ padding: '10px 11px', borderRadius: 9, border: '1.5px solid #f2d6d2', background: '#fff', color: '#c0392b', fontWeight: 800, fontSize: 12 }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9c94bd', lineHeight: 1.45 }}>
+        {count === 0
+          ? 'Optional. A room plays fine without them.'
+          : 'They only bid while this console is open — they are your props, not players.'}
+      </p>
+    </section>
+  )
+}
 
 /** The closing board: who won which items. */
 function FinalResults({ results, players }) {

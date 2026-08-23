@@ -24,6 +24,7 @@ interface HistoryRow {
   bought: number | null
   lots: number | null
   players: number | null
+  hosted: boolean | null
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -60,6 +61,7 @@ export async function GET(request: Request): Promise<Response> {
     bought: milliToWei(r.bought ?? 0),
     lots: r.lots ?? 0,
     players: r.players ?? 0,
+    hosted: Boolean(r.hosted),
   }))
 
   const totals: FreeHistoryResponse['totals'] = {

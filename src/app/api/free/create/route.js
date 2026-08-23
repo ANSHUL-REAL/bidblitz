@@ -40,6 +40,17 @@ export async function POST(request) {
     return Response.json({ error: 'bad host token' }, { status: 400 })
   }
 
+  // Hosting requires an account, so the room can be owned by one — which is
+  // what puts rooms someone RAN into their history, not just ones they played.
+  let hostUserId = null
+  const auth = request.headers.get('authorization') || ''
+  if (auth.toLowerCase().startsWith('bearer ')) {
+    try {
+      const { data } = await admin.auth.getUser(auth.slice(7).trim())
+      hostUserId = data?.user?.id ?? null
+    } catch { hostUserId = null }
+  }
+
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
   if ((await bump(`free:create:${ip}`, 3600)) > MAX_ROOMS_PER_HOUR) {
     return Response.json({ error: 'Too many rooms from this network. Try again later.' }, { status: 429 })
@@ -59,6 +70,7 @@ export async function POST(request) {
         categories,
         host_token_hash: hostTokenHash,
         host_name: hostName,
+        host_user_id: hostUserId,
       })
       .select('code, title, mode, categories')
       .single()

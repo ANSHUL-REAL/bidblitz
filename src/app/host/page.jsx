@@ -7,7 +7,7 @@ import { JoinCard } from '../../components/JoinCard'
 import { CategoryPicker } from '../../components/CategoryPicker'
 import { useSession } from '../../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../../lib/room.mjs'
-import { upsertRoom } from '../../lib/supabase'
+import { upsertRoom, accessToken } from '../../lib/supabase'
 import { makeHostToken, hashToken, saveHostToken, normalizeCode, isValidCode, freeUrl } from '../../lib/freeRoom.mjs'
 import { useAuth } from '../../lib/useAuth'
 
@@ -189,9 +189,15 @@ function CreateTab({ session, router }) {
     const token = makeHostToken()
     const hostTokenHash = await hashToken(token)
 
+    // Hosting requires an account, so the room is owned by one — that is what
+    // puts rooms you RAN into your history, not just ones you played.
+    const session = await accessToken()
     const res = await fetch('/api/free/create', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...(session ? { authorization: `Bearer ${session}` } : {}),
+      },
       body: JSON.stringify({ title: clean, mode, categories: chosen, hostTokenHash }),
     })
     const data = await res.json().catch(() => ({}))

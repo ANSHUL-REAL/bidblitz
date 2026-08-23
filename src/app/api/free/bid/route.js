@@ -1,7 +1,7 @@
 import { admin, notConfigured } from '../../../../lib/supabaseAdmin.mjs'
 import { bump } from '../../../../lib/redis.mjs'
 import {
-  normalizeCode, isValidCode, isPlayerId, weiToMilli, milliToWei,
+  normalizeCode, isValidCode, isPlayerId, weiToMilli, milliToWei, hashToken,
 } from '../../../../lib/freeRoom.mjs'
 
 export const runtime = 'nodejs'
@@ -55,11 +55,18 @@ export async function POST(request) {
     return Response.json({ error: 'Easy — too many bids.' }, { status: 429 })
   }
 
+  // Proof of WHO is bidding. The player id cannot serve as this: it is
+  // published in every state payload so the leaderboard can render.
+  const secret = /^[0-9a-f]{64}$/.test(String(body?.secret || ''))
+    ? await hashToken(String(body.secret))
+    : null
+
   const { data, error } = await admin.rpc('free_place_bid', {
     p_code: code,
     p_player: playerId,
     p_lot: lotId,
     p_amount: Number(milli),
+    p_secret: secret,
   })
 
   if (error) return Response.json({ error: friendly(error.message) }, { status: statusFor(error.message) })
@@ -73,7 +80,7 @@ export async function POST(request) {
 }
 
 function statusFor(m) {
-  if (/not_joined|kicked/.test(m)) return 403
+  if (/not_joined|kicked|bad_secret/.test(m)) return 403
   if (/room_closed/.test(m)) return 409
   if (/bid_rejected|exceeds_purse|bad_amount|over_cap/.test(m)) return 409
   return 500
@@ -82,6 +89,7 @@ function statusFor(m) {
 function friendly(m) {
   if (/not_joined/.test(m)) return 'Join the room before bidding.'
   if (/kicked/.test(m)) return 'The host removed you from this room.'
+  if (/bad_secret/.test(m)) return 'That is not your paddle — rejoin the room.'
   if (/room_closed/.test(m)) return 'This auction has ended.'
   if (/exceeds_purse/.test(m)) return 'Not enough purse left.'
   // The pay-to-win cap. Buying points lets you contest more lots, never

@@ -80,6 +80,22 @@ export function makePlayerId() {
 
 export const isPlayerId = (v) => /^0x[0-9a-fA-F]{40}$/.test(String(v ?? ''))
 
+/**
+ * A player's bidding credential.
+ *
+ * /api/free/state has to publish every player's id so the leaderboard, race
+ * track and avatars can render — which meant the id could not also be the proof
+ * of who was bidding, or anyone could read a rival's off the wire and bid as
+ * them. This is the proof instead: kept in the browser, only its hash stored.
+ */
+export function makePlayerSecret() {
+  const bytes = new Uint8Array(32)
+  const g = globalThis.crypto
+  if (g?.getRandomValues) g.getRandomValues(bytes)
+  else for (let i = 0; i < 32; i++) bytes[i] = Math.floor(Math.random() * 256)
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 /** A host's room credential. Kept in their browser; only its hash is stored. */
 export function makeHostToken() {
   const bytes = new Uint8Array(32)

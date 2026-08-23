@@ -216,14 +216,19 @@ function FreeHistory() {
               <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12.5, fontWeight: 700, color: '#6b2de6', letterSpacing: '.1em' }}>{h.code}</span>
               <span style={{ fontWeight: 800, fontSize: 15 }}>{h.title}</span>
               <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#5b28d9', background: '#efeafd', padding: '2px 7px', borderRadius: 999 }}>FREE</span>
+              {h.hosted && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#12121c', background: '#eeecf7', padding: '2px 7px', borderRadius: 999 }}>HOSTED</span>}
               {!h.closed && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', color: '#5b28d9', background: '#efeafd', padding: '2px 7px', borderRadius: 999 }}>LIVE</span>}
               <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#9c94bd' }}>
                 {new Date(h.playedAt).toLocaleDateString()}
               </span>
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: '#6b6d78', flexWrap: 'wrap' }}>
-              <span><strong style={{ color: h.wins ? '#5b28d9' : '#12121c' }}>{h.wins}</strong> won</span>
-              <span><strong style={{ color: '#12121c' }}>{formatAmount(h.spent)}</strong> spent</span>
+              {h.hosted
+                ? <span>you ran this room</span>
+                : <>
+                    <span><strong style={{ color: h.wins ? '#5b28d9' : '#12121c' }}>{h.wins}</strong> won</span>
+                    <span><strong style={{ color: '#12121c' }}>{formatAmount(h.spent)}</strong> spent</span>
+                  </>}
               <span>{h.players} player{h.players === 1 ? '' : 's'} · {h.lots} lot{h.lots === 1 ? '' : 's'}</span>
               {!h.closed && (
                 <Link href={`/f/${h.code}`} style={{ marginLeft: 'auto', color: '#5b28d9', fontWeight: 700 }}>Rejoin →</Link>
