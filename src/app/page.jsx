@@ -232,25 +232,42 @@ function HostOrJoin() {
             lineup. Create a room, share the four-character code, and everyone else is
             bidding in seconds.
           </p>
+          <p style={{ margin: '10px auto 0', fontSize: 16, lineHeight: 1.5, color: '#6b6d78', maxWidth: '52ch' }}>
+            Two ways to run it: <strong style={{ color: '#12703a' }}>Free</strong> costs nobody
+            anything and needs no wallet. <strong style={{ color: '#6b2de6' }}>MON</strong> puts
+            every bid on-chain, where everyone spends their own.
+          </p>
         </div>
 
         {/* Two distinct kinds of room — Fantasy League is its own thing, not a
             category buried in an auction. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginTop: 30, maxWidth: 760, marginLeft: 'auto', marginRight: 'auto' }}>
           <Link
-            href="/host?kind=auction"
+            href="/host?chain=free&kind=auction"
+            style={{
+              textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#12703a', color: '#fff',
+              boxShadow: '0 18px 40px rgba(18,112,58,.28)', display: 'block',
+            }}
+          >
+            <div style={{ fontSize: 30 }}>🎉</div>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8 }}>Host a Free room</div>
+            <div style={{ fontSize: 14, opacity: .9, marginTop: 4, lineHeight: 1.4 }}>Just for fun. No wallet, no MON, no gas — for you or anyone who joins.</div>
+          </Link>
+
+          <Link
+            href="/host?chain=mon&kind=auction"
             style={{
               textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#6b2de6', color: '#fff',
               boxShadow: '0 18px 40px rgba(107,45,230,.3)', display: 'block',
             }}
           >
-            <div style={{ fontSize: 30 }}>😂</div>
-            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8 }}>Host an Auction</div>
-            <div style={{ fontSize: 14, opacity: .85, marginTop: 4, lineHeight: 1.4 }}>Memes, NFTs, games, art — solo bidding on anything.</div>
+            <div style={{ fontSize: 30 }}>⛓</div>
+            <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontSize: 21, marginTop: 8 }}>Host a MON auction</div>
+            <div style={{ fontSize: 14, opacity: .85, marginTop: 4, lineHeight: 1.4 }}>Every bid a Monad transaction. Winning bid is paid to you.</div>
           </Link>
 
           <Link
-            href="/host?kind=fantasy"
+            href="/host?chain=free&kind=fantasy"
             style={{
               textAlign: 'left', padding: '22px 24px', borderRadius: 18, background: '#fff', color: '#12121c',
               border: '2px solid #e6e2f5', display: 'block',
@@ -472,11 +489,12 @@ function About() {
 /* ------------------------------------------------------------------- faq --- */
 
 const FAQS = [
-  ['Do I need a crypto wallet?', 'No. Your name and password generate a burner wallet right in the browser, and it is funded for you automatically. If you already have MetaMask, Rabby, OKX or Backpack you can connect that instead. Lace will not work — it is a Cardano wallet and cannot talk to an EVM chain like Monad.'],
-  ['How do I host my own auction?', 'Hit Host a room, name it, choose Play money or Real payout, and share the four-character code. The wallet that creates the room becomes its host, and only that wallet can start or sell lots — there is no admin password to share or lose.'],
-  ['Play money vs real payout — what is the difference?', 'A Play-money room is a pure game: bids are accounting units, nothing moves, and everyone bids for free (the pool only covers gas). A Real-payout room escrows real testnet MON on every bid: the winning bid is paid to the host and outbid bidders are refunded — real on-chain value, which is what you show as proof.'],
+  ['Do I need a crypto wallet?', 'Only for a MON room. Free rooms need nothing at all — pick a name and a face and you are bidding, because nothing in them is on-chain and nobody spends anything. A MON room does need a wallet (MetaMask, Rabby, OKX or Backpack) with some testnet MON in it, since every bid is a real transaction you pay for yourself. Lace will not work — it is a Cardano wallet and cannot talk to an EVM chain like Monad.'],
+  ['How do I host my own auction?', 'Hit Host a room and first choose Free or MON. Name it, pick categories, and share the four-character code. In a MON room the wallet that creates it becomes its host, and only that wallet can start or sell lots — enforced by the contract, so there is no admin password to share or lose. A free room is hosted by the browser that created it, so run it from that device.'],
+  ['Free vs MON — what is the difference?', 'A Free room is off-chain: bids are points, nothing is written to a chain, and it costs nobody anything — not you, not your guests, not us. A MON room puts every bid on Monad as a real transaction, so each person spends their own MON and their own gas; with Real payout the winning bid is escrowed and paid to the host while outbid bidders are refunded. Free rooms have to be off-chain to be free — on Monad even a play-money bid costs gas, so somebody would have to be paying.'],
   ['Is this real money?', 'It is real testnet MON, which has no cash value — but in a Real-payout room it genuinely moves on-chain: escrowed on each bid, refunded on an outbid, and paid to the host on a sale. Play-money rooms move nothing.'],
   ['How does the host get paid, and how do I get a refund?', 'In a Real-payout room, selling a lot credits the winning bid to the host on-chain; hit Collect in the host console to withdraw it to your wallet. If you were outbid, Claim refund in the room returns your MON. Both produce a transaction you can open on the explorer.'],
+  ['Who pays for all this?', 'Whoever is transacting. BidBlitz holds no treasury and has no server-side wallet, so it cannot fund anyone even if it wanted to: in a MON room the host pays gas for the lots they start and sell, and each bidder pays for their own bids. Free rooms cost nothing because nothing in them touches a chain.'],
   ['Can I see the transactions live?', 'Yes. Every room has a live history at /r/<code>/history, built straight from on-chain events — every bid, sale, refund and withdrawal links to the real Monad transaction. Hosts and bidders can both watch it.'],
   ['What if I close the tab or my phone dies?', 'Type the same name and password again, on any device. That regenerates the exact same wallet — it is the whole recovery mechanism, and there is no account database behind it.'],
   ['What happens when I win a lot?', 'A soulbound winner badge is minted to your address (non-transferable proof you took that lot). In a play-money room your purse is debited; in a real-payout room your escrowed bid goes to the host.'],

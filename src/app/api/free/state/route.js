@@ -1,0 +1,159 @@
+import { admin, notConfigured } from '../../../../lib/supabaseAdmin.mjs'
+import { normalizeCode, isValidCode, milliToWei } from '../../../../lib/freeRoom.mjs'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+/**
+ * A free room's whole state, in the SAME shape /api/state returns for an
+ * on-chain room.
+ *
+ * That symmetry is the point: the bid bar, race track, leaderboard and big
+ * screen are all written against this payload, so free rooms reuse every one of
+ * them instead of growing a parallel set that drifts. The only honest
+ * differences are `free: true` and `unit`, which the UI uses to make sure a
+ * free room never claims to be moving MON.
+ *
+ * `chainNow` is the SERVER's clock rather than a chain's, and every countdown
+ * anchors to it. A room full of phones with skewed clocks would otherwise
+ * disagree about when a lot ends.
+ */
+const TTL_MS = 400
+const cache = new Map()
+
+export async function GET(request) {
+  if (!admin) return notConfigured()
+
+  const url = new URL(request.url)
+  const live = url.searchParams.has('live')
+  const code = normalizeCode(url.searchParams.get('code'))
+  if (!isValidCode(code)) return Response.json({ error: 'code required' }, { status: 400 })
+
+  const now = Date.now()
+  const hit = cache.get(code)
+  if (!live && hit && now - hit.at < TTL_MS) return json(hit.body, false, true)
+
+  try {
+    const { data: room, error } = await admin
+      .from('free_rooms')
+      .select('code, title, mode, categories, open_lot, lot_count, closed, host_name')
+      .eq('code', code)
+      .maybeSingle()
+
+    if (error) throw new Error(error.message)
+    if (!room) return Response.json({ error: 'room not found', code }, { status: 404 })
+
+    // Falls back to the most recent lot so the SOLD reveal stays on screen after
+    // the lot closes, instead of blanking — same rule as the contract's view.
+    const lotId = room.open_lot || room.lot_count || 0
+
+    const [lotRes, playersRes] = await Promise.all([
+      lotId
+        ? admin.from('free_lots')
+            .select('lot_id, name, image_url, ends_at, high_bid, high_player, sold')
+            .eq('room_code', code).eq('lot_id', lotId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      admin.from('free_players')
+        .select('player_id, entity_id, purse, spent, name, avatar_seed, squad')
+        .eq('room_code', code),
+    ])
+
+    const lot = lotRes.data
+    const players = playersRes.data || []
+    const byId = new Map(players.map((p) => [p.player_id, p]))
+
+    const racers = lotId ? await recentBidders(code, lotId, byId) : []
+
+    const body = {
+      free: true,
+      unit: 'PTS',            // never "MON" — a free room moves nothing
+      escrow: false,
+      exists: true,
+      code,
+      roomId: code,           // the components key off this; a code works fine
+      rname: room.title,
+      host: room.host_name || null,
+      mode: Number(room.mode || 0),
+      categories: room.categories || [],
+      closed: Boolean(room.closed),
+      openLotId: room.open_lot || 0,
+      totalLots: room.lot_count || 0,
+      lotId,
+      lname: lot?.name || '',
+      limage: lot?.image_url || '',
+      highestBid: milliToWei(lot?.high_bid || 0),
+      endsAt: lot ? Math.floor(new Date(lot.ends_at).getTime() / 1000) : 0,
+      leadEntity: lot?.high_player ? byId.get(lot.high_player)?.entity_id ?? 0 : 0,
+      bidder: lot?.high_player || null,
+      sold: Boolean(lot?.sold),
+      nEntities: players.length,
+      squadPurses: squadPurses(room.mode, players),
+      chainNow: Math.floor(now / 1000),
+      racers,
+      players: players.map((p) => ({
+        addr: p.player_id,
+        entityId: p.entity_id,
+        name: p.name,
+        avatarSeed: p.avatar_seed,
+        squad: p.squad,
+        purse: milliToWei(p.purse),
+        spent: milliToWei(p.spent),
+      })),
+      fetchedAt: now,
+    }
+
+    if (!live) cache.set(code, { at: now, body })
+    return json(body, live, false)
+  } catch (err) {
+    // Serve stale rather than nothing — a frozen screen beats a blank one.
+    if (hit?.body) return json({ ...hit.body, stale: true }, live, true)
+    return Response.json({ error: String(err?.message || err) }, { status: 502 })
+  }
+}
+
+/** Best bid per distinct bidder on the current lot — the race track's data. */
+async function recentBidders(code, lotId, byId) {
+  const { data } = await admin
+    .from('free_bids')
+    .select('player_id, amount')
+    .eq('room_code', code).eq('lot_id', lotId)
+    .order('amount', { ascending: false })
+    .limit(200)
+
+  const best = new Map()
+  for (const b of data || []) {
+    const prev = best.get(b.player_id)
+    if (!prev) best.set(b.player_id, { amount: BigInt(b.amount), bids: 1 })
+    else prev.bids += 1 // rows arrive best-first, so the first is already the max
+  }
+
+  return [...best.entries()]
+    .sort((a, b) => (b[1].amount > a[1].amount ? 1 : -1))
+    .slice(0, 5)
+    .map(([playerId, r]) => ({
+      bidder: playerId,
+      entityId: byId.get(playerId)?.entity_id ?? 0,
+      amount: milliToWei(r.amount),
+      bids: r.bids,
+    }))
+}
+
+/** Fantasy rooms show four shared purses; solo rooms send an empty list. */
+function squadPurses(mode, players) {
+  if (Number(mode) !== 1) return []
+  const totals = [0n, 0n, 0n, 0n]
+  for (const p of players) {
+    const i = Number(p.squad || 0) - 1
+    if (i >= 0 && i < 4) totals[i] += BigInt(p.purse)
+  }
+  return totals.map((t) => milliToWei(t))
+}
+
+function json(body, live, cached) {
+  return Response.json(body, {
+    headers: {
+      'Cache-Control': live ? 'no-store' : 'public, s-maxage=1, stale-while-revalidate=30',
+      'X-Cache': cached ? 'HIT' : 'MISS',
+    },
+  })
+}

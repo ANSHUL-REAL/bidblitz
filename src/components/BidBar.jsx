@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useCountdown } from '../lib/useAuction'
-import { formatAmount, formatMon, incrementLabel, QUICK_INCREMENTS, ESCROW_INCREMENTS, entityLabel, entityColor } from '../lib/format.mjs'
+import { formatAmount, incrementLabel, QUICK_INCREMENTS, ESCROW_INCREMENTS, entityLabel, entityColor } from '../lib/format.mjs'
 import { txUrl } from '../lib/chain.mjs'
 
 /**
@@ -13,7 +13,12 @@ import { txUrl } from '../lib/chain.mjs'
  * here is in service of two questions a bidder asks constantly: am I winning,
  * and how long have I got?
  */
-export function BidBar({ state, signer, me, refreshMe, roomId }) {
+/**
+ * `unit` exists so a FREE room can never claim to be moving MON. Free rooms
+ * reuse this whole component — same race, same thumb targets — but their points
+ * are not a currency and must not be labelled like one.
+ */
+export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
   const open = Number(state?.openLotId || 0) !== 0
   const live = open && remaining > 0
@@ -93,7 +98,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
       navigator.vibrate?.(30)
       // Escrow rooms escrow the bid as msg.value; play-money rooms send nothing.
       const hash = await signer.placeBid(roomId, state.lotId, amount, escrow ? amount : 0n)
-      setFlash({ kind: 'sent', text: `${formatMon(amount)} — sent`, hash })
+      setFlash({ kind: 'sent', text: `${formatAmount(amount)} ${unit} — sent`, hash })
     } catch (err) {
       await signer.syncNonce().catch(() => {})
       setFlash({ kind: 'error', text: String(err?.message || err).slice(0, 80) })
@@ -169,7 +174,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId }) {
               }}
             >
               {formatAmount(highest)}
-              <span style={{ fontSize: 14, marginLeft: 6, color: '#6b2de6' }}>MON</span>
+              <span style={{ fontSize: 14, marginLeft: 6, color: '#6b2de6' }}>{unit}</span>
             </div>
             <div style={{ fontSize: 13, color: leading ? '#12703a' : '#6b6d78', fontWeight: leading ? 700 : 400 }}>
               {sold

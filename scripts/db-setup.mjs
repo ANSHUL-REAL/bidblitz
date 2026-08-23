@@ -8,7 +8,7 @@
  * networks), use the IPv4 pooler string instead (Settings -> Database ->
  * Connection pooling, session mode, port 5432).
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
@@ -20,12 +20,24 @@ if (!url || url.includes('[YOUR-PASSWORD]')) {
 }
 
 const here = dirname(fileURLToPath(import.meta.url))
-const sql = readFileSync(resolve(here, '..', 'supabase', 'schema.sql'), 'utf8')
+const dir = resolve(here, '..', 'supabase')
+
+// schema.sql first, then the numbered deltas in order. Every file is written to
+// be re-runnable (if not exists / or replace), so this is safe to repeat — and
+// forgetting a migration is how free rooms 500 on a fresh project.
+const files = [
+  'schema.sql',
+  ...readdirSync(dir).filter((f) => /^\d+_.*\.sql$/.test(f)).sort(),
+]
 
 const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } })
 try {
   await client.connect()
-  await client.query(sql)
+  for (const file of files) {
+    process.stdout.write(`  ${file} … `)
+    await client.query(readFileSync(resolve(dir, file), 'utf8'))
+    console.log('ok')
+  }
   const { rows } = await client.query(
     "select table_name from information_schema.tables where table_schema='public' order by table_name"
   )
