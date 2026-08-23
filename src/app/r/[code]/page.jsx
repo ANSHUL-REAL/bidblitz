@@ -6,6 +6,7 @@ import { RaceTrack, racersFromState } from '../../../components/RaceTrack'
 import { BidBar } from '../../../components/BidBar'
 import { JoinCard } from '../../../components/JoinCard'
 import { WithdrawPanel } from '../../../components/WithdrawPanel'
+import { SettlePanel } from '../../../components/SettlePanel'
 import { useAuction, useCountdown } from '../../../lib/useAuction'
 import { useSession } from '../../../lib/useSession'
 import { roomIdFromCode, roomCode } from '../../../lib/room.mjs'
@@ -19,9 +20,11 @@ export default function Room({ params }) {
   const { code } = use(params)
   const roomId = roomIdFromCode(code)
 
-  const { state, error, setWakeHandler } = useAuction({ roomId, intervalMs: 1000 })
+  const { state, error, setWakeHandler, refetch } = useAuction({ roomId, intervalMs: 1000 })
   const session = useSession(roomId)
   const { signer, me, refreshMe, joined } = session
+  const isHost = state?.host && signer?.address &&
+    state.host.toLowerCase() === signer.address.toLowerCase()
 
   useEffect(() => {
     setWakeHandler(() => {
@@ -49,6 +52,7 @@ export default function Room({ params }) {
         ) : (
           <>
             <WithdrawPanel signer={signer} label="Refund available" claimLabel="Claim refund" accent="#6b2de6" />
+            <SettlePanel state={state} signer={signer} roomId={roomId} isHost={isHost} onDone={refetch} />
             <LiveRoom state={state} signer={signer} me={me} />
             <PaymentTrail escrow={state?.escrow} address={signer?.address} />
           </>

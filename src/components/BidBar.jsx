@@ -25,8 +25,9 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
   const purse = BigInt(me?.purse || 0)
   const paddleColor = entityColor(me?.entityId, state?.mode)
 
-  // Real-MON (escrow) rooms: bids are the bidder's OWN MON, sent as value and
-  // capped by wallet balance; play-money rooms bid against the purse.
+  // Real-MON rooms still cap by wallet balance even though the bid itself moves
+  // nothing: bidding past what you can actually settle just wins you a lot you
+  // are about to default on.
   const escrow = Boolean(state?.escrow)
   const [walletBal, setWalletBal] = useState(0n)
   const spendable = escrow ? walletBal : purse
@@ -105,7 +106,9 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
     setFlash(null)
     try {
       navigator.vibrate?.(30)
-      const hash = await signer.placeBid(roomId, state.lotId, amount, escrow ? amount : 0n)
+      // A real-MON bid is a COMMITMENT now, not a payment — the winner settles
+      // after the clock, via payLot. So no value rides along with any bid.
+      const hash = await signer.placeBid(roomId, state.lotId, amount, 0n)
       setFlash({ kind: 'sent', text: `${formatAmount(amount)} ${unit} — sent`, hash })
     } catch (err) {
       await signer.syncNonce?.().catch(() => {})

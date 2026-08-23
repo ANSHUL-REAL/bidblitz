@@ -15,7 +15,13 @@ export const dynamic = 'force-dynamic'
  * let this be a single wide query. Withdrawn isn't room-indexed, so it's kept
  * regardless (it's the proof MON reached a wallet).
  */
-const WANT = ['BidPlaced', 'LotSold', 'LotUnsold', 'Refunded', 'LotStarted', 'Joined', 'Withdrawn']
+// Refunded is gone: a real-MON bid no longer moves money, so there is
+// nothing to give back when someone is outbid. The settlement events
+// replace it — AwaitingPayment / LotPaid / LotDefaulted.
+const WANT = [
+  'BidPlaced', 'LotStarted', 'LotSold', 'LotUnsold', 'Joined',
+  'AwaitingPayment', 'LotPaid', 'LotDefaulted', 'Withdrawn',
+]
 const EVENT_ABIS = BIDBLITZ_ABI.filter((x) => x.type === 'event' && WANT.includes(x.name))
 const CHUNK = 85n   // safely under the ~96-block getLogs cap
 const CHUNKS = 8    // ~680 blocks ≈ 3.4 min of history

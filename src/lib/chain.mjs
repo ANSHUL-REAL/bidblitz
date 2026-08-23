@@ -49,13 +49,18 @@ export const GAS = {
   createRoom: 260_000n, // writes 4 squad purses + the room record
   joinSquad: 70_000n,
   joinSolo: 105_000n,
-  // Escrow paths add cold SSTOREs (refund-on-outbid, credit-host-on-sale) on
-  // top of the play-money cost, so these are budgeted for the escrow case —
-  // measured empirically: a 175k sellLot ran out of gas on the escrow branch.
-  placeBid: 165_000n,   // + the outbid-refund SSTORE + Refunded event
+  // A real-MON bid no longer moves value, so the outbid-refund SSTORE is gone
+  // from this path; the limit stays where it is because Monad bills on the
+  // LIMIT and a bid that runs out of gas costs the bidder the lot.
+  placeBid: 165_000n,
   startLot: 140_000n,
   sellLot: 245_000n,    // badge mint + label + credit-host SSTORE
   closeLot: 140_000n,   // escrow close refunds the current leader (cold SSTORE)
+  // The winner settling a real-MON lot: credit the host + mint the badge + two
+  // events. This is what sellLot used to cost before payment moved out of it.
+  payLot: 250_000n,
+  // Marking a non-payer: clears three packed fields and emits twice.
+  defaultLot: 120_000n,
   withdraw: 70_000n,    // zero one slot + a value transfer to an EOA
   finalize: 260_000n,   // permissionless settle after expiry (incl. badge mint + credit)
 }

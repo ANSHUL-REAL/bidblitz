@@ -43,6 +43,11 @@ export const BIDBLITZ_ABI = [
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "Defaulted",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint128",
@@ -75,12 +80,32 @@ export const BIDBLITZ_ABI = [
   },
   {
     "inputs": [],
+    "name": "NotWinner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NothingToPay",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NothingToWithdraw",
     "type": "error"
   },
   {
     "inputs": [],
+    "name": "PayWindowClosed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "Soulbound",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "StillPaying",
     "type": "error"
   },
   {
@@ -97,6 +122,43 @@ export const BIDBLITZ_ABI = [
     "inputs": [],
     "name": "WrongValue",
     "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
+        "name": "amount",
+        "type": "uint96"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint40",
+        "name": "payBy",
+        "type": "uint40"
+      }
+    ],
+    "name": "AwaitingPayment",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -170,6 +232,68 @@ export const BIDBLITZ_ABI = [
       }
     ],
     "name": "Joined",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
+        "name": "amount",
+        "type": "uint96"
+      }
+    ],
+    "name": "LotDefaulted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
+        "name": "amount",
+        "type": "uint96"
+      }
+    ],
+    "name": "LotPaid",
     "type": "event"
   },
   {
@@ -288,37 +412,6 @@ export const BIDBLITZ_ABI = [
       },
       {
         "indexed": true,
-        "internalType": "uint32",
-        "name": "lotId",
-        "type": "uint32"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Refunded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint32",
-        "name": "roomId",
-        "type": "uint32"
-      },
-      {
-        "indexed": true,
         "internalType": "address",
         "name": "host",
         "type": "address"
@@ -411,6 +504,19 @@ export const BIDBLITZ_ABI = [
         "internalType": "uint8",
         "name": "",
         "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PAY_WINDOW",
+    "outputs": [
+      {
+        "internalType": "uint40",
+        "name": "",
+        "type": "uint40"
       }
     ],
     "stateMutability": "view",
@@ -569,6 +675,48 @@ export const BIDBLITZ_ABI = [
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      }
+    ],
+    "name": "defaultLot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "defaulted",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -785,6 +933,16 @@ export const BIDBLITZ_ABI = [
         "internalType": "bool",
         "name": "sold",
         "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "paid",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint40",
+        "name": "payBy",
+        "type": "uint40"
       }
     ],
     "stateMutability": "view",
@@ -820,6 +978,24 @@ export const BIDBLITZ_ABI = [
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "roomId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "lotId",
+        "type": "uint32"
+      }
+    ],
+    "name": "payLot",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -1244,6 +1420,16 @@ export const BIDBLITZ_ABI = [
             "internalType": "bool",
             "name": "escrow",
             "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "paid",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint40",
+            "name": "payBy",
+            "type": "uint40"
           },
           {
             "internalType": "uint128[]",

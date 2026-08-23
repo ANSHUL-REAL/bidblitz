@@ -7,6 +7,7 @@ import { JoinCard } from '../../../../components/JoinCard'
 import { useAuction, useCountdown, formatCountdown } from '../../../../lib/useAuction'
 import { useSession } from '../../../../lib/useSession'
 import { WithdrawPanel } from '../../../../components/WithdrawPanel'
+import { SettlePanel } from '../../../../components/SettlePanel'
 import { roomIdFromCode } from '../../../../lib/room.mjs'
 import { formatAmount, entityLabel, SQUADS } from '../../../../lib/format.mjs'
 import { PRESET_LOTS, IMAGE_LIBRARY, DEFAULT_DURATION, sanitizeLotName } from '../../../../lib/lots.mjs'
@@ -176,6 +177,9 @@ function Console({ code, roomId, state, refetch, signer }) {
 
         {/* Real-MON proceeds to collect (escrow rooms only; hidden otherwise). */}
         <WithdrawPanel signer={signer} label="Auction proceeds" claimLabel="Collect to wallet" accent="#12703a" />
+
+        {/* Real-MON: who owes what, and the remedy if they never pay. */}
+        <SettlePanel state={state} signer={signer} roomId={roomId} isHost onDone={refetch} />
 
         {/* ---------------- live status ---------------- */}
         <section

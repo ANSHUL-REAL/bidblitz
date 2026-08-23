@@ -70,7 +70,9 @@ const KIND = {
   BidPlaced:  { dot: '#6b2de6', verb: 'bid' },
   LotSold:    { dot: '#12703a', verb: 'won' },
   LotUnsold:  { dot: '#9c94bd', verb: 'unsold' },
-  Refunded:   { dot: '#c98a00', verb: 'refunded' },
+  AwaitingPayment: { dot: '#c98a00', verb: 'awaiting payment' },
+  LotPaid:    { dot: '#12703a', verb: 'paid' },
+  LotDefaulted: { dot: '#c0392b', verb: 'not paid' },
   Withdrawn:  { dot: '#0e7490', verb: 'withdrew' },
   LotStarted: { dot: '#5b28d9', verb: 'lot opened' },
   Joined:     { dot: '#8d85b4', verb: 'joined' },
@@ -83,7 +85,9 @@ function Row({ r, nameFor }) {
   if (r.kind === 'BidPlaced') text = <><b>{nameFor(a.bidder)}</b> bid <b>{formatMon(a.amount)}</b> on lot #{a.lotId}</>
   else if (r.kind === 'LotSold') text = <><b>{nameFor(a.winner)}</b> won <b>{a.name || `lot #${a.lotId}`}</b> for <b>{formatMon(a.amount)}</b></>
   else if (r.kind === 'LotUnsold') text = <><b>{a.name || `Lot #${a.lotId}`}</b> went unsold</>
-  else if (r.kind === 'Refunded') text = <><b>{nameFor(a.to)}</b> refunded <b>{formatMon(a.amount)}</b> (outbid)</>
+  else if (r.kind === 'AwaitingPayment') text = <><b>{nameFor(a.winner)}</b> won lot #{a.lotId} — owes <b>{formatMon(a.amount)}</b></>
+  else if (r.kind === 'LotPaid') text = <><b>{nameFor(a.winner)}</b> paid <b>{formatMon(a.amount)}</b> for lot #{a.lotId}</>
+  else if (r.kind === 'LotDefaulted') text = <><b>{nameFor(a.winner)}</b> never paid <b>{formatMon(a.amount)}</b> — lot #{a.lotId} released</>
   else if (r.kind === 'Withdrawn') text = <><b>{nameFor(a.who)}</b> withdrew <b>{formatMon(a.amount)}</b> to their wallet</>
   else if (r.kind === 'LotStarted') text = <>Lot <b>{a.name || `#${a.lotId}`}</b> opened</>
   else if (r.kind === 'Joined') text = <><b>{nameFor(a.who)}</b> joined</>

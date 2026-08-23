@@ -110,6 +110,14 @@ export class Signer {
   placeBid(roomId, lotId, amount, value = 0n) {
     return this.send('placeBid', [Number(roomId), Number(lotId), BigInt(amount)], GAS.placeBid, BigInt(value || 0n))
   }
+  /** Real-MON: settle a lot you won. The bid was a commitment; this pays it. */
+  payLot(roomId, lotId, amount) {
+    return this.send('payLot', [Number(roomId), Number(lotId)], GAS.payLot, BigInt(amount))
+  }
+  /** Real-MON: the winner never paid, so put the lot back on the block. */
+  defaultLot(roomId, lotId) {
+    return this.send('defaultLot', [Number(roomId), Number(lotId)], GAS.defaultLot)
+  }
   withdraw() { return this.send('withdraw', [], GAS.withdraw) }
 
   // Host-only. The host wallet is the credential — no shared secret, and no

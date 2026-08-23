@@ -36,6 +36,11 @@ contract BidBlitz {
     error WrongValue();
     error NothingToWithdraw();
     error WithdrawFailed();
+    error NotWinner();
+    error NothingToPay();
+    error PayWindowClosed();
+    error StillPaying();
+    error Defaulted();
 
     uint16 public constant SQUAD_COUNT = 4;
 
@@ -46,6 +51,11 @@ contract BidBlitz {
     uint128 public constant SOLO_START = 50 ether;
 
     uint40 public constant MAX_DURATION = 300;
+
+    /// How long a winner has to settle a real-MON lot before the host may
+    /// re-run it. Long enough to open a wallet and approve, short enough that
+    /// a live auction is not held up by someone who wandered off.
+    uint40 public constant PAY_WINDOW = 180;
 
     /// Room formats. SOLO is the default — a general auction where everyone bids
     /// as themselves on any items (memes, pictures, anything). SQUADS is the
@@ -67,12 +77,20 @@ contract BidBlitz {
     /// purse = remaining spendable. spent = cumulative, for closing stats.
     struct Entity { uint128 purse; uint128 spent; }
 
-    /// ONE slot, 160 bits. Everything placeBid needs to validate AND update.
+    /// ONE slot, 194 bits. Everything placeBid needs to validate AND update,
+    /// plus the settlement state, which costs no extra SSTORE because it packs
+    /// into the same word.
+    ///
+    /// `sold` means "bidding is over", NOT "paid". In a real-MON room those are
+    /// now two different moments: the clock picks a winner, and the winner then
+    /// settles. `paid` is the one that means the host has their money.
     struct Lot {
         uint96 highestBid;
         uint40 endsAt;
         uint16 leadEntity;
         bool   sold;
+        bool   paid;
+        uint40 payBy;   // 0 = nothing owed (play money, or no winner)
     }
 
     uint32 public roomCount;
@@ -85,11 +103,20 @@ contract BidBlitz {
     mapping(uint32 => mapping(uint32 => Lot))     public lots;
     mapping(uint32 => mapping(uint32 => address)) public leadBidder;
 
-    /// Real-MON escrow (escrow rooms only). Pull-payment balances: an outbid
-    /// bidder is refunded here, and a lot's winning bid is credited to the host
-    /// here on sale. Claimed via withdraw(). Pull, never push, so the settlement
-    /// path (placeBid/sellLot) makes no external call and has no reentrancy.
+    /// Real-MON proceeds awaiting collection. Only ever the HOST's: since a bid
+    /// no longer moves money, there is nothing to refund an outbid bidder, and
+    /// this holds exactly what winners have paid. Claimed via withdraw(). Pull,
+    /// never push, so no settlement path makes an external call.
     mapping(address => uint256) public pendingWithdrawals;
+
+    /// Won a lot and never paid for it. Barred from bidding again in THAT room.
+    ///
+    /// This is the whole reason pay-after-winning is safe to offer. A bid costs
+    /// nothing up front, so without a consequence one person could bid the
+    /// maximum on every lot, never settle, and force the room to re-run each
+    /// one forever. Losing your paddle after a single default makes that attack
+    /// cost the attacker the game they are trying to ruin.
+    mapping(uint32 => mapping(address => bool)) public defaulted;
 
     /// Typed live by the host. NEVER read by placeBid, so live lots cost nothing
     /// on the hot path.
@@ -112,7 +139,9 @@ contract BidBlitz {
     event BidPlaced(uint32 indexed roomId, uint32 indexed lotId, address indexed bidder, uint16 entityId, uint96 amount, uint40 endsAt);
     event LotSold(uint32 indexed roomId, uint32 indexed lotId, address indexed winner, uint16 entityId, uint96 amount, string name);
     event LotUnsold(uint32 indexed roomId, uint32 indexed lotId, string name);
-    event Refunded(uint32 indexed roomId, uint32 indexed lotId, address indexed to, uint256 amount);
+    event AwaitingPayment(uint32 indexed roomId, uint32 indexed lotId, address indexed winner, uint96 amount, uint40 payBy);
+    event LotPaid(uint32 indexed roomId, uint32 indexed lotId, address indexed winner, uint96 amount);
+    event LotDefaulted(uint32 indexed roomId, uint32 indexed lotId, address indexed winner, uint96 amount);
     event Withdrawn(address indexed who, uint256 amount);
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
@@ -201,7 +230,10 @@ contract BidBlitz {
         lotImage[roomId][id] = limage;
 
         uint40 endsAt = uint40(block.timestamp) + dur;
-        lots[roomId][id] = Lot({ highestBid: 0, endsAt: endsAt, leadEntity: 0, sold: false });
+        lots[roomId][id] = Lot({
+            highestBid: 0, endsAt: endsAt, leadEntity: 0,
+            sold: false, paid: false, payBy: 0
+        });
         r.openLot = id;
 
         emit LotStarted(roomId, id, lname, limage, endsAt);
@@ -229,13 +261,12 @@ contract BidBlitz {
         if (amount <= l.highestBid) revert BidTooLow(l.highestBid); // strict: block order breaks ties
 
         if (r.escrow) {
-            // Real MON: escrow exactly the bid; refund the outbid leader (pull).
-            if (msg.value != amount) revert WrongValue();
-            address prev = leadBidder[roomId][lotId];
-            if (prev != address(0)) {
-                pendingWithdrawals[prev] += l.highestBid;
-                emit Refunded(roomId, lotId, prev, l.highestBid);
-            }
+            // A bid is now a COMMITMENT, not a payment: the clock picks a
+            // winner and the winner then settles with payLot(). So no value
+            // moves here, and there is nothing to refund an outbid bidder --
+            // they never parted with anything.
+            if (msg.value != 0) revert WrongValue();
+            if (defaulted[roomId][msg.sender]) revert Defaulted();
         } else {
             // Play money: no real value moves, and the bid must fit the purse.
             if (msg.value != 0) revert WrongValue();
@@ -244,7 +275,10 @@ contract BidBlitz {
         }
 
         // The clock only counts down — a bid never extends it.
-        lots[roomId][lotId] = Lot({ highestBid: amount, endsAt: l.endsAt, leadEntity: e, sold: false });
+        lots[roomId][lotId] = Lot({
+            highestBid: amount, endsAt: l.endsAt, leadEntity: e,
+            sold: false, paid: false, payBy: 0
+        });
         leadBidder[roomId][lotId] = msg.sender;
 
         emit BidPlaced(roomId, lotId, msg.sender, e, amount, l.endsAt);
@@ -284,9 +318,13 @@ contract BidBlitz {
         }
 
         if (rooms[roomId].escrow) {
-            // The winning bid is already escrowed in the contract; credit it to
-            // the host to pull. No purse accounting in real-MON rooms.
-            pendingWithdrawals[rooms[roomId].host] += l.highestBid;
+            // Bidding is over; paying has not started. The badge is NOT minted
+            // and the host is NOT credited until the winner actually settles --
+            // otherwise a lot could be "sold" for money that never arrives.
+            uint40 deadline = uint40(block.timestamp) + PAY_WINDOW;
+            lots[roomId][lotId].payBy = deadline;
+            emit AwaitingPayment(roomId, lotId, winner, l.highestBid, deadline);
+            return;
         } else {
             Entity storage ent = entities[roomId][l.leadEntity];
             uint128 amt = uint128(l.highestBid);
@@ -301,9 +339,9 @@ contract BidBlitz {
         emit LotSold(roomId, lotId, winner, l.leadEntity, l.highestBid, label);
     }
 
-    /// Escape hatch if a lot needs abandoning without a sale. In an escrow room
-    /// the current leader is refunded so their MON is never trapped. Marks the
-    /// lot sold so sellLot won't later re-settle (and double-pay) it.
+    /// Escape hatch if a lot needs abandoning without a sale. Marks the lot
+    /// sold so sellLot won't later re-settle it. Costs the leader nothing: in a
+    /// real-MON room a bid is a commitment, not a payment.
     function closeLot(uint32 roomId) external onlyHost(roomId) {
         Room storage r = rooms[roomId];
         uint32 lotId = r.openLot;
@@ -312,13 +350,8 @@ contract BidBlitz {
         Lot storage l = lots[roomId][lotId];
         if (l.sold) return;
         l.sold = true;
-        if (r.escrow) {
-            address leader = leadBidder[roomId][lotId];
-            if (leader != address(0)) {
-                pendingWithdrawals[leader] += l.highestBid;
-                emit Refunded(roomId, lotId, leader, l.highestBid);
-            }
-        }
+        // Nothing to refund: in a real-MON room a bid never moved money, so
+        // abandoning a lot costs the leader nothing.
         emit LotUnsold(roomId, lotId, lotName[roomId][lotId]);
     }
 
@@ -340,7 +373,64 @@ contract BidBlitz {
         _settle(roomId, lotId);
     }
 
-    /// Pull refunds (outbid) and proceeds (host, on sale) in escrow rooms.
+    /**
+     * Settle a real-MON lot you won.
+     *
+     * The clock picks a winner; this is where the money actually moves. Paid
+     * straight into the host's pull balance, and only now is the badge minted
+     * and LotSold emitted — a lot is not "sold" until it is paid for.
+     *
+     * Deliberately callable by the winner ONLY. Letting a third party pay would
+     * mean someone else can force a sale the winner has decided to walk away
+     * from, which is the winner's call to make.
+     */
+    function payLot(uint32 roomId, uint32 lotId) external payable {
+        Lot storage l = lots[roomId][lotId];
+        if (!l.sold || l.paid || l.payBy == 0) revert NothingToPay();
+        if (block.timestamp > l.payBy) revert PayWindowClosed();
+        if (msg.sender != leadBidder[roomId][lotId]) revert NotWinner();
+        if (msg.value != l.highestBid) revert WrongValue();
+
+        l.paid = true;
+        pendingWithdrawals[rooms[roomId].host] += msg.value;
+
+        _mint(msg.sender, badgeId(roomId, lotId), lotName[roomId][lotId]);
+        emit LotPaid(roomId, lotId, msg.sender, l.highestBid);
+        emit LotSold(roomId, lotId, msg.sender, l.leadEntity, l.highestBid, lotName[roomId][lotId]);
+    }
+
+    /**
+     * The winner did not pay in time, so the lot goes back on the block.
+     *
+     * Bars them from bidding in this room again — see `defaulted`. Without a
+     * consequence, a bidder with nothing at stake could win every lot, never
+     * settle, and re-run the auction forever.
+     *
+     * Permissionless once the window has closed: the host will normally press
+     * it, but the room should not be stuck waiting for a host who has stepped
+     * away. Never reverts past the guards, because it is pressed on stage.
+     */
+    function defaultLot(uint32 roomId, uint32 lotId) external {
+        Lot storage l = lots[roomId][lotId];
+        if (!l.sold || l.paid || l.payBy == 0) revert NothingToPay();
+        if (block.timestamp <= l.payBy) revert StillPaying();
+
+        address loser = leadBidder[roomId][lotId];
+        uint96 amount = l.highestBid;
+
+        // Clear what was owed so this can only fire once, and the lot reads as
+        // finished-unsold rather than eternally awaiting money.
+        l.payBy = 0;
+        l.highestBid = 0;
+        l.leadEntity = 0;
+        leadBidder[roomId][lotId] = address(0);
+        if (loser != address(0)) defaulted[roomId][loser] = true;
+
+        emit LotDefaulted(roomId, lotId, loser, amount);
+        emit LotUnsold(roomId, lotId, lotName[roomId][lotId]);
+    }
+
+    /// Pull proceeds (host, once a winner has paid) in escrow rooms.
     /// Checks-effects-interactions + zero-before-call makes this reentrancy-safe.
     function withdraw() external {
         uint256 amt = pendingWithdrawals[msg.sender];
@@ -372,6 +462,8 @@ contract BidBlitz {
         uint16  nEntities;
         uint8   mode;
         bool    escrow;
+        bool    paid;      // real-MON: has the winner actually settled?
+        uint40  payBy;     // real-MON: deadline to settle; 0 = nothing owed
         uint128[] squadPurses;
     }
 
@@ -400,6 +492,8 @@ contract BidBlitz {
             s.endsAt = l.endsAt;
             s.leadEntity = l.leadEntity;
             s.sold = l.sold;
+            s.paid = l.paid;
+            s.payBy = l.payBy;
             s.bidder = leadBidder[roomId][s.lotId];
             s.lname = lotName[roomId][s.lotId];
             s.limage = lotImage[roomId][s.lotId];
