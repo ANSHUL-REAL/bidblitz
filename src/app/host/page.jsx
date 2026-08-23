@@ -7,7 +7,6 @@ import { JoinCard } from '../../components/JoinCard'
 import { CategoryPicker } from '../../components/CategoryPicker'
 import { useSession } from '../../lib/useSession'
 import { roomCode, roomIdFromCode, sanitizeRoomName } from '../../lib/room.mjs'
-import { modeForCategories } from '../../lib/categories.mjs'
 import { upsertRoom } from '../../lib/supabase'
 import { makeHostToken, hashToken, saveHostToken, normalizeCode, isValidCode, freeUrl } from '../../lib/freeRoom.mjs'
 
