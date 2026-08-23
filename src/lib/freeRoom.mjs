@@ -29,19 +29,28 @@ export const DEFAULT_DURATION = 20
  *  so a free code can never be mistaken for a chain roomId (or collide with one). */
 export const freeUrl = (code) => `/f/${String(code || '').toUpperCase()}`
 
-// No I/O/0/1 — these get read off a projector and typed by strangers.
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+/**
+ * Six digits, all numeric.
+ *
+ * Numeric because these get read off a projector and typed by a stranger in a
+ * hurry: a phone shows a number pad instead of a keyboard, and there is no
+ * O-versus-0 or I-versus-1 to misread. Six of them is a million codes, which
+ * keeps collisions rare enough that the insert retry below effectively never
+ * fires twice.
+ */
+export const CODE_LENGTH = 6
 
 export function makeRoomCode(random = cryptoRandom) {
   let out = ''
-  for (let i = 0; i < 4; i++) out += ALPHABET[random(ALPHABET.length)]
+  for (let i = 0; i < CODE_LENGTH; i++) out += String(random(10))
   return out
 }
 
+// Accepts 4-6 so rooms created before codes went numeric still resolve.
 export const normalizeCode = (c) =>
-  String(c ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+  String(c ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH)
 
-export const isValidCode = (c) => /^[A-Z0-9]{4}$/.test(normalizeCode(c))
+export const isValidCode = (c) => /^[A-Z0-9]{4,6}$/.test(normalizeCode(c))
 
 function cryptoRandom(n) {
   const g = globalThis.crypto

@@ -1,13 +1,15 @@
 import { admin, notConfigured } from '../../../../lib/supabaseAdmin.mjs'
 import {
-  normalizeCode, isValidCode, sanitizeText, hashToken, milliToWei, DEFAULT_DURATION, MAX_DURATION,
+  normalizeCode, isValidCode, isPlayerId, sanitizeText, hashToken, milliToWei,
+  DEFAULT_DURATION, MAX_DURATION,
 } from '../../../../lib/freeRoom.mjs'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
- * Host controls for a free room: start a lot, sell it, abandon it.
+ * Host controls for a free room: start a lot, sell it, abandon it, remove a
+ * player, end the room.
  *
  * Authorised by the host token the browser generated at creation. Only its hash
  * was ever stored, and the token is hashed here on the server, so the check is
@@ -72,6 +74,24 @@ export async function POST(request) {
       return Response.json({ ok: true })
     }
 
+    // Ending a room deliberately does NOT sell whatever is live. Stopping an
+    // auction must never charge whoever happened to be leading at the time.
+    if (action === 'end') {
+      const { error } = await admin.rpc('free_end_room', { p_code: code, p_token_hash: hash })
+      if (error) throw error
+      return Response.json({ ok: true, closed: true })
+    }
+
+    if (action === 'kick') {
+      const player = String(body?.playerId || '').toLowerCase()
+      if (!isPlayerId(player)) return Response.json({ error: 'bad player id' }, { status: 400 })
+      const { error } = await admin.rpc('free_kick_player', {
+        p_code: code, p_token_hash: hash, p_player: player,
+      })
+      if (error) throw error
+      return Response.json({ ok: true, removed: player })
+    }
+
     return Response.json({ error: 'unknown action' }, { status: 400 })
   } catch (error) {
     const m = String(error?.message || error)
@@ -98,7 +118,7 @@ const shapeLot = (l) =>
 
 function statusFor(m) {
   if (/not_host/.test(m)) return 403
-  if (/no_room|no_lot/.test(m)) return 404
+  if (/no_room|no_lot|no_player/.test(m)) return 404
   if (/lot_open|room_closed/.test(m)) return 409
   return 500
 }
@@ -107,6 +127,7 @@ function friendly(m) {
   if (/not_host/.test(m)) return 'Only the host of this room can do that.'
   if (/no_room/.test(m)) return 'That room no longer exists.'
   if (/no_lot/.test(m)) return 'No such lot.'
+  if (/no_player/.test(m)) return 'That player is not in this room.'
   if (/lot_open/.test(m)) return 'Finish the open lot first.'
   if (/room_closed/.test(m)) return 'This room has ended.'
   if (/bad_duration/.test(m)) return 'Pick a length between 5 and 300 seconds.'

@@ -134,10 +134,11 @@ function JoinTab({ onGo }) {
       </label>
       <input
         className="field"
-        style={{ marginTop: 8, fontFamily: "'DM Mono',monospace", fontSize: 26, letterSpacing: '.3em', textAlign: 'center', textTransform: 'uppercase' }}
+        style={{ marginTop: 8, fontFamily: "'DM Mono',monospace", fontSize: 26, letterSpacing: '.28em', textAlign: 'center', textTransform: 'uppercase' }}
+        inputMode="numeric"
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
-        placeholder="K7QM"
+        placeholder="123456"
         maxLength={6}
         autoComplete="off"
       />

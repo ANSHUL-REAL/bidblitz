@@ -45,7 +45,7 @@ export class FreePlayer {
 }
 
 /** Polls /api/free/state. Same citizenship rules as useAuction. */
-export function useFreeState({ code, live = false, intervalMs = 1000 } = {}) {
+export function useFreeState({ code, live = false, full = false, intervalMs = 1000 } = {}) {
   const [state, setState] = useState(null)
   const [error, setError] = useState(null)
   const mounted = useRef(true)
@@ -53,7 +53,10 @@ export function useFreeState({ code, live = false, intervalMs = 1000 } = {}) {
   const fetchOnce = useCallback(async () => {
     if (!code) return null
     try {
-      const res = await fetch(`/api/free/state?code=${code}${live ? '&live=1' : ''}`, { cache: 'no-store' })
+      const res = await fetch(
+        `/api/free/state?code=${code}${live ? '&live=1' : ''}${full ? '&full=1' : ''}`,
+        { cache: 'no-store' },
+      )
       if (res.status === 404) {
         if (mounted.current) setError('room not found')
         return null
@@ -66,7 +69,7 @@ export function useFreeState({ code, live = false, intervalMs = 1000 } = {}) {
       if (mounted.current) setError(String(err.message || err))
       return null
     }
-  }, [code, live])
+  }, [code, live, full])
 
   useEffect(() => {
     if (!code) return
@@ -217,5 +220,9 @@ export function useFreeHost(rawCode) {
     startLot: (name, image, seconds) => call('start', { name, image, seconds }),
     sellLot: (lotId) => call('sell', { lotId }),
     closeLot: () => call('close'),
+    // Ends the session. Does NOT sell whatever is live — stopping an auction
+    // must never charge whoever happened to be leading at that moment.
+    endRoom: () => call('end'),
+    kickPlayer: (playerId) => call('kick', { playerId }),
   }
 }

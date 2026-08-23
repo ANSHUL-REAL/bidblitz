@@ -26,12 +26,15 @@ export async function GET(request) {
 
   const url = new URL(request.url)
   const live = url.searchParams.has('live')
+  // The host console wants the whole bid ledger. Phones must not pay for it
+  // on every poll, so it is opt-in and never cached alongside the lean body.
+  const full = url.searchParams.has('full')
   const code = normalizeCode(url.searchParams.get('code'))
   if (!isValidCode(code)) return Response.json({ error: 'code required' }, { status: 400 })
 
   const now = Date.now()
   const hit = cache.get(code)
-  if (!live && hit && now - hit.at < TTL_MS) return json(hit.body, false, true)
+  if (!live && !full && hit && now - hit.at < TTL_MS) return json(hit.body, false, true)
 
   try {
     const { data: room, error } = await admin
@@ -50,16 +53,18 @@ export async function GET(request) {
     const [lotRes, playersRes] = await Promise.all([
       lotId
         ? admin.from('free_lots')
-            .select('lot_id, name, image_url, ends_at, high_bid, high_player, sold')
+            .select('lot_id, name, image_url, ends_at, created_at, high_bid, high_player, sold')
             .eq('room_code', code).eq('lot_id', lotId).maybeSingle()
         : Promise.resolve({ data: null }),
       admin.from('free_players')
-        .select('player_id, entity_id, purse, spent, name, avatar_seed, squad')
+        .select('player_id, entity_id, purse, spent, wins, name, avatar_seed, squad, kicked')
         .eq('room_code', code),
     ])
 
     const lot = lotRes.data
-    const players = playersRes.data || []
+    // Removed players keep their rows (their bids stay in the ledger) but drop
+    // out of the room: no leaderboard entry, no headcount, no race lane.
+    const players = (playersRes.data || []).filter((p) => !p.kicked)
     const byId = new Map(players.map((p) => [p.player_id, p]))
 
     const racers = lotId ? await recentBidders(code, lotId, byId) : []
@@ -83,6 +88,11 @@ export async function GET(request) {
       limage: lot?.image_url || '',
       highestBid: milliToWei(lot?.high_bid || 0),
       endsAt: lot ? Math.floor(new Date(lot.ends_at).getTime() / 1000) : 0,
+      // How long the lot was given, so a progress bar has a denominator.
+      // Derived rather than stored: ends_at and created_at already say it.
+      duration: lot
+        ? Math.max(1, Math.round((new Date(lot.ends_at) - new Date(lot.created_at)) / 1000))
+        : 0,
       leadEntity: lot?.high_player ? byId.get(lot.high_player)?.entity_id ?? 0 : 0,
       bidder: lot?.high_player || null,
       sold: Boolean(lot?.sold),
@@ -90,6 +100,7 @@ export async function GET(request) {
       squadPurses: squadPurses(room.mode, players),
       chainNow: Math.floor(now / 1000),
       racers,
+      bids: full ? await lotBids(code, lotId, byId) : undefined,
       players: players.map((p) => ({
         addr: p.player_id,
         entityId: p.entity_id,
@@ -98,11 +109,12 @@ export async function GET(request) {
         squad: p.squad,
         purse: milliToWei(p.purse),
         spent: milliToWei(p.spent),
+        wins: p.wins || 0,
       })),
       fetchedAt: now,
     }
 
-    if (!live) cache.set(code, { at: now, body })
+    if (!live && !full) cache.set(code, { at: now, body })
     return json(body, live, false)
   } catch (err) {
     // Serve stale rather than nothing — a frozen screen beats a blank one.
@@ -136,6 +148,31 @@ async function recentBidders(code, lotId, byId) {
       amount: milliToWei(r.amount),
       bids: r.bids,
     }))
+}
+
+/**
+ * Every bid on the current lot, newest first — the host's running ledger.
+ *
+ * Unlike the race track (best bid per bidder) this keeps duplicates, because
+ * the host is narrating a live auction and "who has bid, in what order" is the
+ * thing they are reading out.
+ */
+async function lotBids(code, lotId, byId) {
+  if (!lotId) return []
+  const { data } = await admin
+    .from('free_bids')
+    .select('player_id, amount, created_at')
+    .eq('room_code', code).eq('lot_id', lotId)
+    .order('created_at', { ascending: false })
+    .limit(60)
+
+  return (data || []).map((b) => ({
+    bidder: b.player_id,
+    name: byId.get(b.player_id)?.name || null,
+    entityId: byId.get(b.player_id)?.entity_id ?? 0,
+    amount: milliToWei(b.amount),
+    at: b.created_at,
+  }))
 }
 
 /** Fantasy rooms show four shared purses; solo rooms send an empty list. */

@@ -78,7 +78,9 @@ export default function FreeScreen({ params }) {
       </header>
 
       <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: '0 34px 34px' }}>
-        {!state?.lotId ? (
+        {state?.closed ? (
+          <FinalBoard state={state} />
+        ) : !state?.lotId ? (
           <JoinSplash code={code} />
         ) : (
           <div style={{ width: '100%', maxWidth: 1400, textAlign: 'center' }}>
@@ -153,6 +155,58 @@ export default function FreeScreen({ params }) {
         )}
       </div>
     </main>
+  )
+}
+
+/** The result, sized for the back of the room. */
+function FinalBoard({ state }) {
+  const players = [...(state?.players ?? [])].sort(
+    (a, b) => (b.wins - a.wins) || (BigInt(b.spent) > BigInt(a.spent) ? 1 : -1),
+  )
+  const champ = players[0]
+
+  return (
+    <div style={{ width: '100%', maxWidth: 900, textAlign: 'center' }}>
+      <div style={{ fontSize: 15, letterSpacing: '.3em', color: '#8a83a8', fontWeight: 700 }}>
+        AUCTION ENDED
+      </div>
+      {champ && champ.wins > 0 ? (
+        <h1
+          style={{
+            fontFamily: "'Archivo',sans-serif", fontWeight: 900, letterSpacing: '-.04em',
+            textTransform: 'uppercase', fontSize: 'clamp(48px,8vw,120px)', margin: '14px 0 0', lineHeight: .92,
+          }}
+        >
+          {champ.name || `Bidder ${champ.entityId}`}
+          <span style={{ display: 'block', fontSize: '.28em', color: '#7ee2a8', letterSpacing: '-.01em', marginTop: 10 }}>
+            {champ.wins} lot{champ.wins === 1 ? '' : 's'} won
+          </span>
+        </h1>
+      ) : (
+        <p style={{ fontSize: 30, color: '#8a83a8', marginTop: 20 }}>No lots were sold.</p>
+      )}
+
+      <div style={{ marginTop: 34, display: 'grid', gap: 8, textAlign: 'left' }}>
+        {players.slice(0, 8).map((p, i) => (
+          <div
+            key={p.addr}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 16, padding: '12px 18px', borderRadius: 14,
+              background: i === 0 ? 'rgba(185,166,255,.14)' : 'rgba(255,255,255,.04)',
+            }}
+          >
+            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 20, color: '#8a83a8', width: 34 }}>{i + 1}</span>
+            <span style={{ fontSize: 24, fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.name || `Bidder ${p.entityId}`}
+            </span>
+            <span style={{ fontSize: 19, color: '#8a83a8' }}>{formatAmount(p.spent)} spent</span>
+            <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 30, color: p.wins ? '#7ee2a8' : '#4a4560', width: 46, textAlign: 'right' }}>
+              {p.wins}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 

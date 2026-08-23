@@ -5,18 +5,16 @@ import { formatAmount, incrementLabel, QUICK_INCREMENTS, ESCROW_INCREMENTS, enti
 import { txUrl } from '../lib/chain.mjs'
 
 /**
- * The bidding surface: pinned to the bottom of the viewport for as long as a lot
- * is live.
+ * The bidding surface: pinned to the bottom of the viewport while a lot is live.
  *
- * A twenty-second lot does not survive the user having to scroll to find the
- * buttons, so this follows them down the page and sizes for a thumb. Everything
- * here is in service of two questions a bidder asks constantly: am I winning,
- * and how long have I got?
- */
-/**
+ * Laid out top-to-bottom rather than in columns, because it is used one-handed
+ * on a phone with twenty seconds on the clock. In reading order that is: how
+ * long have I got, what is it at, am I winning, and only then the buttons —
+ * which sit last so they are under the thumb rather than under the text.
+ *
  * `unit` exists so a FREE room can never claim to be moving MON. Free rooms
- * reuse this whole component — same race, same thumb targets — but their points
- * are not a currency and must not be labelled like one.
+ * reuse this whole component; their points are not a currency and must not be
+ * labelled like one.
  */
 export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
   const remaining = useCountdown(state?.endsAt, state?.chainNow, state?.fetchedAt)
@@ -28,7 +26,7 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
   const paddleColor = entityColor(me?.entityId, state?.mode)
 
   // Real-MON (escrow) rooms: bids are the bidder's OWN MON, sent as value and
-  // capped by wallet balance; play-money rooms bid against the on-chain purse.
+  // capped by wallet balance; play-money rooms bid against the purse.
   const escrow = Boolean(state?.escrow)
   const [walletBal, setWalletBal] = useState(0n)
   const spendable = escrow ? walletBal : purse
@@ -75,33 +73,34 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
 
   const nextBid = (inc) => highest + inc
   const urgent = remaining <= 5
+  const pct = state?.duration ? (remaining / state.duration) * 100 : (remaining / 20) * 100
 
   async function bid(inc) {
     const now = Date.now()
     if (pending || now < lockedUntil.current || !live) return
-    lockedUntil.current = now + 400 // a double-tap must not become two paid transactions
+    lockedUntil.current = now + 400 // a double-tap must not become two bids
 
     const amount = nextBid(inc)
 
     // `amount` is always highest+inc, so it can't be <= the highest we rendered;
-    // the real staleness (someone outbid us since the last ~1s poll) is caught by
-    // the contract's strict `>` check, which reverts, and by the outbid banner.
-    // What we CAN cheaply prevent is spending past what we can afford — the
-    // on-chain purse in play-money rooms, the real wallet balance in escrow ones.
+    // real staleness (outbid since the last poll) is caught server-side. What we
+    // CAN cheaply prevent is spending past what we can afford.
     if (amount > spendable) {
-      return setFlash({ kind: 'stale', text: escrow ? 'Not enough MON in your wallet' : 'Not enough purse left' })
+      return setFlash({
+        kind: 'stale',
+        text: escrow ? 'Not enough MON in your wallet' : 'Not enough purse left',
+      })
     }
 
     setPending(true)
     setFlash(null)
     try {
       navigator.vibrate?.(30)
-      // Escrow rooms escrow the bid as msg.value; play-money rooms send nothing.
       const hash = await signer.placeBid(roomId, state.lotId, amount, escrow ? amount : 0n)
       setFlash({ kind: 'sent', text: `${formatAmount(amount)} ${unit} — sent`, hash })
     } catch (err) {
-      await signer.syncNonce().catch(() => {})
-      setFlash({ kind: 'error', text: String(err?.message || err).slice(0, 80) })
+      await signer.syncNonce?.().catch(() => {})
+      setFlash({ kind: 'error', text: String(err?.message || err).slice(0, 90) })
     } finally {
       setPending(false)
       refreshTimer.current = setTimeout(refreshMe, 800)
@@ -113,133 +112,152 @@ export function BidBar({ state, signer, me, refreshMe, roomId, unit = 'MON' }) {
   return (
     <>
       {/* Reserve page space so the bar never covers the footer. */}
-      <div style={{ height: 'var(--bidbar-h, 172px)' }} aria-hidden="true" />
+      <div style={{ height: 'var(--bidbar-h, 246px)' }} aria-hidden="true" />
 
       <div
         style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40,
           background: '#fff', borderTop: `3px solid ${statusColor}`,
-          boxShadow: '0 -8px 40px rgba(30,20,70,.16)',
+          boxShadow: '0 -10px 44px rgba(30,20,70,.18)',
           transition: 'border-color .3s ease',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        {/* timer runs the full width — readable from the corner of your eye */}
-        <div style={{ height: 5, background: '#eeecf7', overflow: 'hidden' }}>
+        {/* Timer runs the full width — readable from the corner of your eye. */}
+        <div style={{ height: 6, background: '#eeecf7', overflow: 'hidden' }}>
           <div
             style={{
-              height: '100%', width: `${Math.min(100, (remaining / 20) * 100)}%`,
+              height: '100%', width: `${Math.max(0, Math.min(100, pct))}%`,
               background: urgent ? '#ff4d4d' : '#6b2de6',
-              transition: 'width .1s linear, background .3s ease',
+              transition: 'width .2s linear, background .3s ease',
             }}
           />
         </div>
 
-        <div className="bidbar-inner">
-          {/* ---- what's on the block ---- */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+        <div style={{ maxWidth: 620, margin: '0 auto', padding: '12px 16px 14px' }}>
+          {/* ---- what it is, what it's at ---- */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
             {state?.limage && (
               <img
                 src={state.limage}
                 alt=""
-                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
+                style={{ width: 46, height: 46, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }}
                 onError={(e) => { e.currentTarget.style.display = 'none' }}
               />
             )}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 700 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 10, letterSpacing: '.16em', color: '#9c94bd', fontWeight: 800 }}>
                 LOT #{state?.lotId}
               </div>
               <div
                 style={{
-                  fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 19,
+                  fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 17, lineHeight: 1.15,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
               >
                 {state?.lname}
               </div>
             </div>
+
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: 10, letterSpacing: '.16em', color: '#9c94bd', fontWeight: 800 }}>
+                {sold ? 'SOLD FOR' : 'CURRENT'}
+              </div>
+              <div
+                style={{
+                  fontFamily: "'Archivo', sans-serif", fontWeight: 900, lineHeight: 1,
+                  fontSize: 30, letterSpacing: '-.03em', color: statusColor,
+                  transition: 'color .3s ease',
+                }}
+              >
+                {formatAmount(highest)}
+                <span style={{ fontSize: 12, marginLeft: 4, color: '#9c94bd' }}>{unit}</span>
+              </div>
+            </div>
           </div>
 
-          {/* ---- where the bidding is ---- */}
-          <div style={{ textAlign: 'center', minWidth: 0 }}>
-            <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#6b6d78', fontWeight: 700 }}>
-              {sold ? 'SOLD FOR' : 'CURRENT BID'}
-            </div>
-            <div
+          {/* ---- am I winning, and what have I got left ---- */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 11 }}>
+            <span
               style={{
-                fontFamily: "'Archivo', sans-serif", fontWeight: 900, lineHeight: 1,
-                fontSize: 34, letterSpacing: '-.03em', color: statusColor,
-                transition: 'color .3s ease',
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '7px 12px', borderRadius: 999, minWidth: 0,
+                background: sold ? '#f3f1fa' : leading ? '#e9f9ef' : highest === 0n ? '#f3f1fa' : '#fff1f1',
+                color: sold ? '#12121c' : leading ? '#12703a' : highest === 0n ? '#6b6d78' : '#c0392b',
+                fontWeight: 800, fontSize: 13.5,
               }}
             >
-              {formatAmount(highest)}
-              <span style={{ fontSize: 14, marginLeft: 6, color: '#6b2de6' }}>{unit}</span>
-            </div>
-            <div style={{ fontSize: 13, color: leading ? '#12703a' : '#6b6d78', fontWeight: leading ? 700 : 400 }}>
-              {sold
-                ? leading ? 'You won it' : `${entityLabel(state.leadEntity, state?.mode)} won`
-                : highest === 0n
-                  ? 'No bids yet'
-                  : leading
-                    ? "You're winning"
-                    : `${entityLabel(state.leadEntity, state?.mode)} leading`}
-            </div>
+              <span style={{ width: 8, height: 8, borderRadius: 2, transform: 'rotate(45deg)', background: paddleColor, flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {sold
+                  ? leading ? 'You won it' : `${entityLabel(state.leadEntity, state?.mode)} won`
+                  : highest === 0n
+                    ? 'No bids yet — open it'
+                    : leading
+                      ? "You're winning"
+                      : `${entityLabel(state.leadEntity, state?.mode)} leading`}
+              </span>
+            </span>
+
+            {live && (
+              <span
+                style={{
+                  marginLeft: 'auto', flexShrink: 0,
+                  fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 22,
+                  color: urgent ? '#ff4d4d' : '#12121c',
+                }}
+              >
+                {Math.max(0, remaining)}s
+              </span>
+            )}
           </div>
 
-          {/* ---- your paddle ---- */}
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                gap: 10, marginBottom: 6,
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700 }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, transform: 'rotate(45deg)', background: paddleColor }} />
-                {entityLabel(me?.entityId, state?.mode)}
-              </span>
-              <span style={{ fontSize: 13, color: '#6b6d78' }}>
-                {escrow ? 'wallet' : 'purse'} <strong style={{ color: '#12121c' }}>{formatAmount(spendable)}</strong>
-              </span>
-            </div>
+          {/* ---- the buttons, last and biggest ---- */}
+          {live && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginTop: 12 }}>
+                {increments.map((inc) => {
+                  const amount = nextBid(inc)
+                  const afford = amount <= spendable
+                  const disabled = pending || !afford
+                  return (
+                    <button
+                      key={inc.toString()}
+                      className="btn-plain bid-key"
+                      onClick={() => bid(inc)}
+                      disabled={disabled}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                        padding: '15px 4px', borderRadius: 14,
+                        background: disabled ? '#f1edfb' : '#6b2de6',
+                        color: disabled ? '#b0a3d8' : '#fff',
+                        boxShadow: disabled ? 'none' : '0 10px 24px rgba(107,45,230,.32)',
+                        transition: 'transform .08s ease',
+                      }}
+                    >
+                      <span style={{ fontSize: 10.5, opacity: .85, fontWeight: 800, letterSpacing: '.06em' }}>
+                        {incrementLabel(inc)}
+                      </span>
+                      <span style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: 19, letterSpacing: '-.02em' }}>
+                        {formatAmount(amount)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7 }}>
-              {increments.map((inc) => {
-                const amount = nextBid(inc)
-                const afford = amount <= spendable
-                const disabled = !live || pending || !afford
-                return (
-                  <button
-                    key={inc.toString()}
-                    className="btn-plain bid-key"
-                    onClick={() => bid(inc)}
-                    disabled={disabled}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                      padding: '12px 4px', borderRadius: 12,
-                      background: disabled ? '#efeafd' : '#6b2de6',
-                      color: disabled ? '#a08fd0' : '#fff',
-                      boxShadow: disabled ? 'none' : '0 8px 20px rgba(107,45,230,.3)',
-                    }}
-                  >
-                    <span style={{ fontSize: 10, opacity: .8, fontWeight: 700, letterSpacing: '.06em' }}>
-                      {incrementLabel(inc)}
-                    </span>
-                    <span style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 16 }}>
-                      {formatAmount(amount)}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
+              <div style={{ textAlign: 'center', marginTop: 9, fontSize: 12.5, color: '#9c94bd' }}>
+                {escrow ? 'wallet' : 'your purse'}{' '}
+                <strong style={{ color: '#12121c' }}>{formatAmount(spendable)} {unit}</strong>
+              </div>
+            </>
+          )}
         </div>
 
         {flash && (
           <div
             style={{
-              padding: '8px 20px', fontSize: 14, fontWeight: 700, textAlign: 'center',
+              padding: '9px 20px', fontSize: 14, fontWeight: 700, textAlign: 'center',
               background:
                 flash.kind === 'error' ? '#fdecea'
                 : flash.kind === 'outbid' ? '#fff1f1'

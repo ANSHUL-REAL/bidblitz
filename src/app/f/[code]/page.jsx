@@ -11,6 +11,7 @@ import { useCountdown } from '../../../lib/useAuction'
 import { useFreeState, useFreeSession } from '../../../lib/useFreeRoom'
 import { normalizeCode } from '../../../lib/freeRoom.mjs'
 import { formatAmount, entityLabel, entityColor } from '../../../lib/format.mjs'
+import { shortAddress } from '../../../lib/format.mjs'
 import { isSquads } from '../../../lib/modes.mjs'
 
 /**
@@ -33,6 +34,15 @@ export default function FreeRoom({ params }) {
   // instead of needing one of their own.
   useEffect(() => { syncFrom(state) }, [state, syncFrom])
 
+  const closed = Boolean(state?.closed)
+
+  // A player the host removed vanishes from the roster while their browser
+  // still believes it is in the room. Detect it from the roster rather than
+  // waiting for their next bid to be refused.
+  const removed = Boolean(
+    joined && state?.players && !state.players.some((p) => p.addr === session.player?.addr),
+  )
+
   if (error === 'room not found') return <Missing code={code} />
 
   return (
@@ -40,7 +50,11 @@ export default function FreeRoom({ params }) {
       <RoomHeader state={state} code={code} session={session} />
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 20px 0' }}>
-        {!joined ? (
+        {closed ? (
+          <Ended state={state} myAddr={session.player?.addr} />
+        ) : removed ? (
+          <Removed onLeave={session.leave} />
+        ) : !joined ? (
           <FreeJoinCard session={session} roomName={state?.rname} />
         ) : (
           <>
@@ -54,13 +68,102 @@ export default function FreeRoom({ params }) {
         )}
       </div>
 
-      {joined && (
+      {joined && !closed && !removed && (
         <BidBar
           state={state} signer={signer} me={me} roomId={code}
           refreshMe={() => {}} unit="PTS"
         />
       )}
     </main>
+  )
+}
+
+/** A session that just stops has no ending; this gives everyone the same one. */
+function Ended({ state, myAddr }) {
+  const players = [...(state?.players ?? [])].sort(
+    (a, b) => (b.wins - a.wins) || (BigInt(b.spent) > BigInt(a.spent) ? 1 : -1),
+  )
+  const champ = players[0]
+
+  return (
+    <div style={{ maxWidth: 520, margin: '10px auto 40px' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 12, letterSpacing: '.22em', color: '#6b6d78', fontWeight: 800 }}>
+          AUCTION ENDED
+        </div>
+        {champ && champ.wins > 0 ? (
+          <>
+            <div style={{ marginTop: 16 }}><Avatar seed={champ.avatarSeed || champ.addr} size={80} /></div>
+            <h1
+              style={{
+                fontFamily: "'Archivo',sans-serif", fontWeight: 900, letterSpacing: '-.035em',
+                textTransform: 'uppercase', fontSize: 'clamp(30px,6vw,44px)', margin: '12px 0 0', lineHeight: .98,
+              }}
+            >
+              {champ.addr === myAddr ? 'You won it' : champ.name || entityLabel(champ.entityId)}
+            </h1>
+            <p style={{ margin: '6px 0 0', fontSize: 16, color: '#12703a', fontWeight: 700 }}>
+              {champ.wins} lot{champ.wins === 1 ? '' : 's'} won
+            </p>
+          </>
+        ) : (
+          <p style={{ margin: '16px 0 0', fontSize: 17, color: '#6b6d78' }}>No lots were sold.</p>
+        )}
+      </div>
+
+      <div style={{ marginTop: 24, background: '#fff', border: '1px solid #eeecf7', borderRadius: 18, padding: 16 }}>
+        {players.map((p, i) => {
+          const mine = p.addr === myAddr
+          return (
+            <div
+              key={p.addr}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 11, padding: '10px 11px', borderRadius: 11,
+                background: mine ? '#efeafd' : 'transparent',
+              }}
+            >
+              <span style={{ width: 20, fontFamily: "'DM Mono',monospace", fontSize: 13, color: '#9c94bd', fontWeight: 700 }}>{i + 1}</span>
+              <Avatar seed={p.avatarSeed || p.addr} size={30} />
+              <span style={{ fontWeight: 700, fontSize: 14.5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {p.name || shortAddress(p.addr)}{mine ? ' (you)' : ''}
+              </span>
+              <span style={{ marginLeft: 'auto', fontSize: 13, color: '#6b6d78' }}>
+                {formatAmount(p.spent)} spent
+              </span>
+              <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 17, color: p.wins ? '#12703a' : '#c9c3dd', minWidth: 26, textAlign: 'right' }}>
+                {p.wins}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 20 }}>
+        <Link className="btn" href="/host">Host your own</Link>
+      </div>
+    </div>
+  )
+}
+
+function Removed({ onLeave }) {
+  return (
+    <div style={{ maxWidth: 420, margin: '40px auto', textAlign: 'center' }}>
+      <BidBlitzMark size={48} style={{ opacity: .35 }} />
+      <h1
+        style={{
+          fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 30,
+          letterSpacing: '-.03em', textTransform: 'uppercase', margin: '16px 0 8px',
+        }}
+      >
+        You were removed
+      </h1>
+      <p style={{ color: '#6b6d78', fontSize: 16, margin: '0 0 22px', lineHeight: 1.5 }}>
+        The host took you out of this room. Nothing you bid counted.
+      </p>
+      <button className="btn-plain" onClick={onLeave} style={{ padding: '13px 22px', borderRadius: 12, background: '#6b2de6', color: '#fff', fontWeight: 800, fontSize: 15 }}>
+        Leave the room
+      </button>
+    </div>
   )
 }
 

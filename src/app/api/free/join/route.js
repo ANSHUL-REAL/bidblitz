@@ -61,8 +61,9 @@ export async function POST(request) {
   })
 
   if (error) {
-    const status = /no_room/.test(error.message) ? 404 : 500
-    return Response.json({ error: friendly(error.message) }, { status })
+    const m = error.message || ''
+    const status = /no_room/.test(m) ? 404 : /kicked|room_closed/.test(m) ? 403 : 500
+    return Response.json({ error: friendly(m) }, { status })
   }
 
   const row = Array.isArray(data) ? data[0] : data
@@ -79,5 +80,10 @@ export async function POST(request) {
   })
 }
 
-const friendly = (m) =>
-  /no_room/.test(m) ? 'That room no longer exists.' : 'Could not join this room.'
+const friendly = (m) => {
+  if (/no_room/.test(m)) return 'That room no longer exists.'
+  if (/room_closed/.test(m)) return 'This auction has already ended.'
+  // A removed player must not be able to walk back in by refreshing.
+  if (/kicked/.test(m)) return 'The host removed you from this room.'
+  return 'Could not join this room.'
+}
