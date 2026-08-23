@@ -15,23 +15,48 @@ import { createClient } from '@supabase/supabase-js'
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+/**
+ * Catch the two mistakes that otherwise surface as a flat "Invalid API key"
+ * from Supabase, which tells you nothing about which of the two it was:
+ *   - the placeholder from the setup instructions left in place
+ *   - the PUBLISHABLE key pasted where the secret one belongs (easy to do;
+ *     they sit next to each other in the dashboard and look alike)
+ */
+function keyProblem(k) {
+  if (!k) return 'SUPABASE_SERVICE_ROLE_KEY is not set'
+  if (/^(your|my|paste|xxx|<)/i.test(k) || k.length < 30) {
+    return 'SUPABASE_SERVICE_ROLE_KEY still looks like a placeholder'
+  }
+  if (k.startsWith('sb_publishable_')) {
+    return 'SUPABASE_SERVICE_ROLE_KEY holds a PUBLISHABLE key — free rooms need the secret one (sb_secret_…)'
+  }
+  return null
+}
+
+const problem = url ? keyProblem(key) : 'NEXT_PUBLIC_SUPABASE_URL is not set'
+
 let _admin = null
-try {
-  if (url && key) {
+if (!problem) {
+  try {
     _admin = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
+  } catch (e) {
+    console.warn('[supabase-admin] disabled:', e?.message || e)
   }
-} catch (e) {
-  console.warn('[supabase-admin] disabled:', e?.message || e)
+} else {
+  console.warn(`[supabase-admin] free rooms disabled — ${problem}`)
 }
 
 export const admin = _admin
 export const hasAdmin = Boolean(_admin)
 
-/** Uniform 503 when free mode isn't configured, rather than a confusing crash. */
+/** Uniform 503 when free mode isn't configured, naming the actual problem. */
 export const notConfigured = () =>
   Response.json(
-    { error: 'Free rooms need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY' },
+    {
+      error: `Free rooms are not configured — ${problem || 'Supabase admin client unavailable'}.`,
+      help: 'Supabase dashboard → Project Settings → API Keys → Secret keys.',
+    },
     { status: 503 },
   )
