@@ -11,7 +11,7 @@ Two ways to run one, and the difference is the first thing you're asked:
 BidBlitz never pays for anybody's gas. It holds no treasury and no server-side wallet.
 
 - 🌐 **Live app:** https://bidblitz-anshul-reals-projects.vercel.app
-- 🔗 **Contract (Monad testnet):** [`0x2bebf0247d1bcc007935237c723ebbac6ade8f59`](https://testnet.monadvision.com/address/0x2bebf0247d1bcc007935237c723ebbac6ade8f59)
+- 🔗 **Contract (Monad testnet):** [`0x094a2bee94586c1a74d44ff69cc5c72ca87f1d07`](https://testnet.monadvision.com/address/0x094a2bee94586c1a74d44ff69cc5c72ca87f1d07)
 - ⛓ **Chain:** Monad testnet (chain id `10143`)
 
 ---
@@ -90,7 +90,7 @@ Everything is verifiable — you never have to trust the app's UI:
 - **After each bid**, the "view tx ↗" link opens that exact transaction.
 - **Collect / Claim refund** show the `withdraw()` tx — proof the MON reached the wallet.
 - **On the block explorer** (source of truth):
-  - All room activity: open the [contract address](https://testnet.monadvision.com/address/0x2bebf0247d1bcc007935237c723ebbac6ade8f59)
+  - All room activity: open the [contract address](https://testnet.monadvision.com/address/0x094a2bee94586c1a74d44ff69cc5c72ca87f1d07)
     → every `createRoom`, `placeBid`, `LotSold`, `Refunded`, `Withdrawn` event is there.
   - A specific payment: open the tx hash → see the MON `value` move. For a **real-payout**
     sale, the host's `withdraw()` tx shows MON leaving the contract into the host wallet —
