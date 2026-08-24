@@ -666,6 +666,56 @@ function Footer() {
           <MonadLockup height={22} inverted />
         </div>
       </div>
+
+      {/* Credits — the people behind it, and the hackathon it placed in. */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,.1)' }}>
+        <div
+          className="pad-x"
+          style={{
+            maxWidth: 1440, margin: '0 auto', paddingTop: 22, paddingBottom: 28,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
+            flexWrap: 'wrap', textAlign: 'center',
+          }}
+        >
+          <span style={{ fontSize: 14, color: 'rgba(255,255,255,.8)' }}>
+            Made by{' '}
+            <a
+              href="https://github.com/ANSHUL-REAL" target="_blank" rel="noreferrer"
+              style={{ color: '#a983ff', fontWeight: 700 }}
+            >
+              Anshul
+            </a>
+            {' & '}
+            <a
+              href="https://github.com/NumberOneMahiruSimp" target="_blank" rel="noreferrer"
+              style={{ color: '#a983ff', fontWeight: 700 }}
+            >
+              Amaan
+            </a>
+          </span>
+
+          <span style={{ color: 'rgba(255,255,255,.3)' }}>·</span>
+
+          <span
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13,
+              fontWeight: 700, color: '#ffd479',
+              background: 'rgba(255,212,121,.12)', padding: '5px 12px', borderRadius: 999,
+            }}
+          >
+            🏆 4th place — Monad Blitz Hyderabad
+          </span>
+
+          <span style={{ color: 'rgba(255,255,255,.3)' }}>·</span>
+
+          <a
+            href="https://github.com/ANSHUL-REAL/bidblitz" target="_blank" rel="noreferrer"
+            style={{ fontSize: 14, color: 'rgba(255,255,255,.65)', fontWeight: 600 }}
+          >
+            Source ↗
+          </a>
+        </div>
+      </div>
     </footer>
   )
 }
