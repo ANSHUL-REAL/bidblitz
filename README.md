@@ -307,3 +307,10 @@ in the room could read a rival's off the wire and bid as them. The secret is tha
 
 Player photos and team logos are not bundled (they're copyrighted); generated art is used, and
 hosts paste or upload images they have the rights to use.
+
+## Authors & Credits
+
+- [Anshul](https://github.com/ANSHUL-REAL)
+- [Mohammed Amaanuddin (NumberOneMahiruSimp)](https://github.com/NumberOneMahiruSimp)
+- Monad Blitz Hyderabad (4th place winner)
+
